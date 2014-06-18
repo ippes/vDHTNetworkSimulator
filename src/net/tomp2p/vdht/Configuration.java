@@ -31,6 +31,7 @@ public final class Configuration {
 	private static final String CHURN_JOIN_LEAVE_RATE = "churnJoinLeaveRate";
 	private static final String CHURN_STRATEGY_NAME = "churnStrategyName";
 	private static final String NUM_KEYS = "numKeys";
+	private static final String PUT_CONCURRENCY_FACTOR = "putConcurrencyFactor";
 	private static final String PUT_DELAY_MAX_IN_MILLISECONDS = "putDelayMaxInMilliseconds";
 	private static final String PUT_DELAY_MIN_IN_MILLISECONDS = "putDelayMinInMilliseconds";
 
@@ -70,6 +71,7 @@ public final class Configuration {
 		properties.setProperty(CHURN_JOIN_LEAVE_RATE, "0.5");
 		properties.setProperty(CHURN_STRATEGY_NAME, "stepwiseRandom");
 		properties.setProperty(NUM_KEYS, "100");
+		properties.setProperty(PUT_CONCURRENCY_FACTOR, "2");
 		properties.setProperty(PUT_DELAY_MAX_IN_MILLISECONDS, "2000");
 		properties.setProperty(PUT_DELAY_MIN_IN_MILLISECONDS, "500");
 
@@ -248,4 +250,18 @@ public final class Configuration {
 		}
 		return Integer.parseInt(properties.getProperty(PUT_DELAY_MIN_IN_MILLISECONDS));
 	}
+
+	/**
+	 * Get value for PUT_CONCURRENCY_FACTOR from configuration.
+	 * 
+	 * @return number of peers putting with the same key
+	 * @throws IOException
+	 */
+	public static int getPutConcurrencyFactor() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(PUT_CONCURRENCY_FACTOR));
+	}
+
 }
