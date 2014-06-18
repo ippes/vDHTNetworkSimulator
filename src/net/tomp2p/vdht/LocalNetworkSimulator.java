@@ -43,23 +43,25 @@ public class LocalNetworkSimulator {
 	private final Random random = new Random();
 
 	private final int numPeersMax;
+	private final int numPeersMin;
 	private final int port;
-	private final int churnRateDelayInMilliseconds;
 	private final int numKeys;
 
 	public LocalNetworkSimulator() throws IOException {
 		this.numPeersMax = Configuration.getNumPeersMax();
 		logger.trace("max # peers = '{}", numPeersMax);
+		this.numPeersMin = Configuration.getNumPeersMin();
+		logger.trace("min # peers = '{}", numPeersMin);
 		this.port = Configuration.getPort();
 		logger.trace("port = '{}'", port);
-		this.churnRateDelayInMilliseconds = Configuration.getChurnRateDelayInMilliseconds();
-		logger.trace("churn rate delay in milliseconds = '{}'", churnRateDelayInMilliseconds);
 		this.numKeys = Configuration.getNumKeys();
 		logger.trace("# keys = '{}'", numKeys);
 	}
 
 	public void createNetwork() throws Exception {
-		for (int i = 0; i < numPeersMax; i++) {
+		// initially create peers within given boundaries
+		int numPeers = (numPeersMax + numPeersMin) / 2;
+		for (int i = 0; i < numPeers; i++) {
 			if (i == 0) {
 				masterPeer = new PeerDHT(new PeerBuilder(new Number160(random)).ports(port).start());
 				logger.trace("Master Peer added to network. peer id = '{}'", masterPeer.peerID());
@@ -70,12 +72,12 @@ public class LocalNetworkSimulator {
 				logger.trace("Peer added to network. peer id = '{}'", peer.peerID());
 			}
 		}
-		logger.debug("Network created.");
+		logger.debug("Network created. numPeers = '{}", numPeers);
 	}
 
 	public void startChurn() throws IOException {
-		churnFuture = scheduler.scheduleWithFixedDelay(new ChurnExecutor(), 0, churnRateDelayInMilliseconds,
-				TimeUnit.MILLISECONDS);
+		ChurnExecutor churnExecutor = new ChurnExecutor(scheduler);
+		churnFuture = scheduler.schedule(churnExecutor, churnExecutor.delay(), TimeUnit.MILLISECONDS);
 		logger.debug("Churn started.");
 	}
 
@@ -122,14 +124,17 @@ public class LocalNetworkSimulator {
 	 * 
 	 * @author Seppi
 	 */
-	private final class ChurnExecutor implements Runnable {
+	private final class ChurnExecutor extends Executor {
 
 		private final Logger logger = LoggerFactory.getLogger(ChurnExecutor.class);
 
 		private final double churnJoinLeaveRate;
 		private final ChurnStrategy churnStrategy;
 
-		public ChurnExecutor() throws IOException {
+		public ChurnExecutor(ScheduledExecutorService scheduler) throws IOException {
+			super(scheduler, Configuration.getChurnRateMinDelayInMilliseconds(), Configuration
+					.getChurnRateMaxDelayInMilliseconds());
+
 			this.churnJoinLeaveRate = Configuration.getChurnJoinLeaveRate();
 			logger.trace("churn join/leave rate = '{}'", churnJoinLeaveRate);
 
@@ -154,18 +159,14 @@ public class LocalNetworkSimulator {
 		}
 
 		@Override
-		public void run() {
-			try {
-				logger.debug("Currently online peers = '{}'", peers.size() + 1);
-				// toggle join/leaves
-				double churnRate = random.nextDouble();
-				if (churnJoinLeaveRate < churnRate) {
-					addPeersToTheNetwork();
-				} else {
-					removePeersFromNetwork();
-				}
-			} catch (Exception e) {
-				logger.error("Caught an unexpected exception.", e);
+		public void execute() throws Exception {
+			logger.debug("Currently online peers = '{}'", peers.size() + 1);
+			// toggle join/leaves
+			double churnRate = random.nextDouble();
+			if (churnJoinLeaveRate < churnRate) {
+				addPeersToTheNetwork();
+			} else {
+				removePeersFromNetwork();
 			}
 		}
 
@@ -197,68 +198,21 @@ public class LocalNetworkSimulator {
 		}
 	}
 
-	private final class PutExecutor implements Runnable {
+	private final class PutExecutor extends Executor {
 
 		private final Logger logger = LoggerFactory.getLogger(PutExecutor.class);
 
-		private final ScheduledExecutorService scheduler;
 		private final Number480 key;
 
-		private final int putDelayMaxInMilliseconds;
-		private final int putDelayMinInMilliseconds;
-
 		public PutExecutor(ScheduledExecutorService scheduler) throws IOException {
-			this.scheduler = scheduler;
+			super(scheduler, Configuration.getPutDelayMinInMilliseconds(), Configuration
+					.getPutDelayMaxInMilliseconds());
 			this.key = new Number480(random);
-			this.putDelayMaxInMilliseconds = Configuration.getPutDelayMaxInMilliseconds();
-			logger.trace("max put delay in milliseconds = '{}'", putDelayMaxInMilliseconds);
-			this.putDelayMinInMilliseconds = Configuration.getPutDelayMinInMilliseconds();
-			logger.trace("min put delay in milliseconds = '{}'", putDelayMinInMilliseconds);
 		}
 
 		@Override
-		public void run() {
-			try {
-				// // select random online peer
-				// PeerDHT peer = null;
-				// int randomPeerIndex = random.nextInt(peers.size() + 1) - 1;
-				// peer = peers.get(randomPeerIndex);
-				//
-				// Data data = null;
-				// try {
-				// data = new Data("test");
-				// } catch (IOException e) {
-				// logger.error("Couldn't create data object.", e);
-				// return;
-				// }
-				//
-				// FuturePut futurePut =
-				// peer.put(key.locationKey()).domainKey(key.domainKey())
-				// .data(key.contentKey(), data).start();
-				// futurePut.awaitUninterruptibly();
-				//
-				// logger.debug("Put lKey = '{}' success = '{}'",
-				// key.locationKey(),
-				// futurePut.isSuccess());
-			} catch (Exception e) {
-				logger.error("Caught an unexpected exception.", e);
-			} finally {
-				// schedule next put with a varying delay
-				int delay = delay();
-				logger.debug("Scheduling a new put task in '{}' milliseconds.", delay);
-				scheduler.schedule(this, delay, TimeUnit.MILLISECONDS);
-			}
-		}
-
-		/**
-		 * Calculates a varying delay within given boundaries.
-		 * 
-		 * @return a delay
-		 */
-		public int delay() {
-			int maxDelta = putDelayMaxInMilliseconds - putDelayMinInMilliseconds;
-			int varyingDelta = maxDelta > 0 ? random.nextInt(maxDelta + 1) : 0;
-			return putDelayMinInMilliseconds + varyingDelta;
+		public void execute() throws Exception {
+			
 		}
 
 	}
