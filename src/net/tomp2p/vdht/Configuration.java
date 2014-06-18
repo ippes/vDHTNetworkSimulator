@@ -26,7 +26,8 @@ public final class Configuration {
 	private static final String NUM_PEERS_MAX = "numPeersMax";
 	private static final String CHURN_RATE_JOIN = "churnRateJoin";
 	private static final String CHURN_RATE_LEAVE = "churnRateLeave";
-	private static final String CHURN_RATE_DELAY_IN_MILLISECONDS = "churnRateDelayInMilliseconds";
+	private static final String CHURN_RATE_MIN_DELAY_IN_MILLISECONDS = "churnRateMinDelayInMilliseconds";
+	private static final String CHURN_RATE_MAX_DELAY_IN_MILLISECONDS = "churnRateMaxDelayInMilliseconds";
 	private static final String CHURN_JOIN_LEAVE_RATE = "churnJoinLeaveRate";
 	private static final String CHURN_STRATEGY_NAME = "churnStrategyName";
 	private static final String NUM_KEYS = "numKeys";
@@ -64,11 +65,13 @@ public final class Configuration {
 		properties.setProperty(NUM_PEERS_MAX, "1000");
 		properties.setProperty(CHURN_RATE_JOIN, "10");
 		properties.setProperty(CHURN_RATE_LEAVE, "10");
-		properties.setProperty(CHURN_RATE_DELAY_IN_MILLISECONDS, "500");
+		properties.setProperty(CHURN_RATE_MIN_DELAY_IN_MILLISECONDS, "500");
+		properties.setProperty(CHURN_RATE_MAX_DELAY_IN_MILLISECONDS, "1000");
 		properties.setProperty(CHURN_JOIN_LEAVE_RATE, "0.5");
+		properties.setProperty(CHURN_STRATEGY_NAME, "stepwiseRandom");
 		properties.setProperty(NUM_KEYS, "100");
 		properties.setProperty(PUT_DELAY_MAX_IN_MILLISECONDS, "2000");
-		properties.setProperty(PUT_DELAY_MAX_IN_MILLISECONDS, "500");
+		properties.setProperty(PUT_DELAY_MIN_IN_MILLISECONDS, "500");
 
 		// store default config file
 		FileOutputStream out = new FileOutputStream(configFile);
@@ -141,16 +144,31 @@ public final class Configuration {
 	}
 
 	/**
-	 * Get value for CHURN_RATE_DELAY_IN_MILLISECONDS from configuration.
+	 * Get value for CHURN_RATE_MIN_DELAY_IN_MILLISECONDS from configuration.
 	 * 
-	 * @return delay in milliseconds between two churn events (join/leave)
+	 * @return minimum delay in milliseconds between two churn events
+	 *         (join/leave)
 	 * @throws IOException
 	 */
-	public static int getChurnRateDelayInMilliseconds() throws IOException {
+	public static int getChurnRateMinDelayInMilliseconds() throws IOException {
 		if (properties == null) {
 			loadProperties();
 		}
-		return Integer.parseInt(properties.getProperty(CHURN_RATE_DELAY_IN_MILLISECONDS));
+		return Integer.parseInt(properties.getProperty(CHURN_RATE_MIN_DELAY_IN_MILLISECONDS));
+	}
+
+	/**
+	 * Get value for CHURN_RATE_MAX_DELAY_IN_MILLISECONDS from configuration.
+	 * 
+	 * @return maximal delay in milliseconds between two churn events
+	 *         (join/leave)
+	 * @throws IOException
+	 */
+	public static int getChurnRateMaxDelayInMilliseconds() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(CHURN_RATE_MAX_DELAY_IN_MILLISECONDS));
 	}
 
 	/**
