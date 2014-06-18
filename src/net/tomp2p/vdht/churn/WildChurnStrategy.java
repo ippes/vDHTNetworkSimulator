@@ -35,13 +35,13 @@ public final class WildChurnStrategy implements ChurnStrategy {
 	@Override
 	public int getNumJoiningPeers(int currentNumberOfPeers) {
 		int maxJoiningPeers = numPeersMax - (currentNumberOfPeers + 1);
-		return maxJoiningPeers > 0 ? random.nextInt(maxJoiningPeers) : 0;
+		return maxJoiningPeers > 0 ? random.nextInt(maxJoiningPeers + 1) : 0;
 	}
 
 	@Override
 	public int getNumLeavingPeers(int currentNumberOfPeers) {
 		int maxLeavingPeers = currentNumberOfPeers - numPeersMin;
-		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers) : 0;
+		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers + 1) + 1: 0;
 	}
 
 }
