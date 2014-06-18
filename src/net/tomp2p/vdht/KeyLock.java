@@ -3,10 +3,15 @@ package net.tomp2p.vdht;
 import java.util.HashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /*
  * source: http://stackoverflow.com/questions/5639870/simple-java-name-based-locks
  */
 public class KeyLock<K> {
+
+	private static Logger logger = LoggerFactory.getLogger(KeyLock.class);
 
 	public class RefCounterLock {
 		final private K key;
@@ -21,24 +26,6 @@ public class KeyLock<K> {
 
 	private final ReentrantLock lockInternal = new ReentrantLock();
 	private final HashMap<K, RefCounterLock> cache = new HashMap<K, RefCounterLock>();
-
-	public RefCounterLock lock(final K key) {
-		final RefCounterLock refLock;
-		lockInternal.lock();
-		try {
-			if (!cache.containsKey(key)) {
-				refLock = new RefCounterLock(key);
-				cache.put(key, refLock);
-			} else {
-				refLock = cache.get(key);
-			}
-		} finally {
-			lockInternal.unlock();
-		}
-		refLock.lock.lock();
-		refLock.counter++;
-		return refLock;
-	}
 
 	public RefCounterLock tryLock(final K key) {
 		final RefCounterLock refLock;
@@ -76,6 +63,8 @@ public class KeyLock<K> {
 				if (cachedLock.counter == 0) {
 					cache.remove(lock.key);
 				}
+			} else {
+				logger.warn("Received an unkownd lock.");;
 			}
 		} finally {
 			lockInternal.unlock();

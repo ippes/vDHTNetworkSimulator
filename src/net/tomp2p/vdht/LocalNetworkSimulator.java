@@ -2,8 +2,10 @@ package net.tomp2p.vdht;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -34,18 +36,19 @@ public class LocalNetworkSimulator {
 	private PeerDHT masterPeer;
 	private final List<PeerDHT> peers = new ArrayList<PeerDHT>();
 
-	private final KeyLock<Number160> keyLock = new KeyLock<Number160>();
-
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 	private ScheduledFuture<?> churnFuture;
-	private ScheduledFuture<?>[] putFutures;
+	private ScheduledFuture<?>[][] putFutures;
 
 	private final Random random = new Random();
+	private final KeyLock<Number160> keyLock = new KeyLock<Number160>();
+	private final Set<Number480> keySet = new HashSet<Number480>();
 
 	private final int numPeersMax;
 	private final int numPeersMin;
 	private final int port;
 	private final int numKeys;
+	private final int putConcurrencyFactor;
 
 	public LocalNetworkSimulator() throws IOException {
 		this.numPeersMax = Configuration.getNumPeersMax();
@@ -56,6 +59,8 @@ public class LocalNetworkSimulator {
 		logger.trace("port = '{}'", port);
 		this.numKeys = Configuration.getNumKeys();
 		logger.trace("# keys = '{}'", numKeys);
+		this.putConcurrencyFactor = Configuration.getPutConcurrencyFactor();
+		logger.trace("put concurrency factor = '{}'", putConcurrencyFactor);
 	}
 
 	public void createNetwork() throws Exception {
@@ -82,10 +87,17 @@ public class LocalNetworkSimulator {
 	}
 
 	public void startPutting() throws IOException {
-		putFutures = new ScheduledFuture<?>[numKeys];
+		putFutures = new ScheduledFuture<?>[numKeys][putConcurrencyFactor];
 		for (int i = 0; i < numKeys; i++) {
-			PutExecutor putExecutor = new PutExecutor(scheduler);
-			putFutures[i] = scheduler.schedule(putExecutor, putExecutor.delay(), TimeUnit.MILLISECONDS);
+			Number480 key = new Number480(random);
+			PutExecutor putExecutor = new PutExecutor(key, scheduler);
+			// start putting with same key according concurrency factor
+			for (int j = 0; j < putConcurrencyFactor; j++) {
+				putFutures[i][j] = scheduler
+						.schedule(putExecutor, putExecutor.delay(), TimeUnit.MILLISECONDS);
+			}
+			// store key for future analysis
+			keySet.add(key);
 		}
 		logger.debug("Putting started.");
 	}
@@ -96,7 +108,9 @@ public class LocalNetworkSimulator {
 		}
 		if (putFutures != null) {
 			for (int i = 0; i < putFutures.length; i++) {
-				putFutures[i].cancel(true);
+				for (int j = 0; j < putFutures[i].length; j++) {
+					putFutures[i][j].cancel(true);
+				}
 			}
 		}
 
@@ -189,10 +203,15 @@ public class LocalNetworkSimulator {
 			int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers.size());
 			logger.debug("Leaving {} peers.", numberOfLeavingPeers);
 			for (int i = 0; i < numberOfLeavingPeers; i++) {
-				int randomIndex = random.nextInt(peers.size());
-				PeerDHT peer = peers.get(randomIndex);
+				KeyLock<Number160>.RefCounterLock lock = null;
+				PeerDHT peer = null;
+				while (lock == null) {
+					peer = peers.get(random.nextInt(peers.size()));
+					lock = keyLock.tryLock(peer.peerID());
+				}
 				peers.remove(peer);
 				peer.shutdown().awaitUninterruptibly();
+				keyLock.unlock(lock);
 				logger.trace("Peer leaved the network. peer id = '{}'", peer.peerID());
 			}
 		}
@@ -204,15 +223,22 @@ public class LocalNetworkSimulator {
 
 		private final Number480 key;
 
-		public PutExecutor(ScheduledExecutorService scheduler) throws IOException {
+		public PutExecutor(Number480 key, ScheduledExecutorService scheduler) throws IOException {
 			super(scheduler, Configuration.getPutDelayMinInMilliseconds(), Configuration
 					.getPutDelayMaxInMilliseconds());
-			this.key = new Number480(random);
+			this.key = key;
 		}
 
 		@Override
 		public void execute() throws Exception {
-			
+			KeyLock<Number160>.RefCounterLock lock = null;
+			PeerDHT peer = null;
+			while (lock == null) {
+				peer = peers.get(random.nextInt(peers.size()));
+				lock = keyLock.tryLock(peer.peerID());
+			}
+			keyLock.unlock(lock);
+			logger.trace("Put. key = '{}'", key);
 		}
 
 	}
