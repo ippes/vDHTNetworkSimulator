@@ -31,9 +31,12 @@ public final class Configuration {
 	private static final String CHURN_JOIN_LEAVE_RATE = "churnJoinLeaveRate";
 	private static final String CHURN_STRATEGY_NAME = "churnStrategyName";
 	private static final String NUM_KEYS = "numKeys";
+	private static final String NUM_PUTS = "numPuts";
 	private static final String PUT_CONCURRENCY_FACTOR = "putConcurrencyFactor";
 	private static final String PUT_DELAY_MAX_IN_MILLISECONDS = "putDelayMaxInMilliseconds";
 	private static final String PUT_DELAY_MIN_IN_MILLISECONDS = "putDelayMinInMilliseconds";
+	private static final String REPLICATION = "replication";
+	private static final String PUT_APPROACH = "putApproach";
 
 	private static void loadProperties() throws IOException {
 		// create new properties
@@ -71,9 +74,12 @@ public final class Configuration {
 		properties.setProperty(CHURN_JOIN_LEAVE_RATE, "0.5");
 		properties.setProperty(CHURN_STRATEGY_NAME, "stepwiseRandom");
 		properties.setProperty(NUM_KEYS, "100");
+		properties.setProperty(NUM_PUTS, "10");
 		properties.setProperty(PUT_CONCURRENCY_FACTOR, "2");
 		properties.setProperty(PUT_DELAY_MAX_IN_MILLISECONDS, "2000");
 		properties.setProperty(PUT_DELAY_MIN_IN_MILLISECONDS, "500");
+		properties.setProperty(REPLICATION, "nRoot");
+		properties.setProperty(PUT_APPROACH, "optimistic");
 
 		// store default config file
 		FileOutputStream out = new FileOutputStream(configFile);
@@ -189,7 +195,9 @@ public final class Configuration {
 	/**
 	 * Get value for CHURN_STRATEGY_NAME from configuration.
 	 * 
-	 * @return name of selected churn strategy
+	 * @return name of selected churn strategy <code>off</code>,
+	 *         <code>stepwise</code>, <code>stepwiseRandom</code> or
+	 *         <code>wild</code>
 	 * @throws IOException
 	 */
 	public static String getChurnStrategyName() throws IOException {
@@ -223,6 +231,19 @@ public final class Configuration {
 			loadProperties();
 		}
 		return Integer.parseInt(properties.getProperty(NUM_KEYS));
+	}
+
+	/**
+	 * Get value for NUM_PUTS from configuration.
+	 * 
+	 * @return how often a key has to be put
+	 * @throws IOException
+	 */
+	public static int getNumPuts() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(NUM_PUTS));
 	}
 
 	/**
@@ -262,6 +283,33 @@ public final class Configuration {
 			loadProperties();
 		}
 		return Integer.parseInt(properties.getProperty(PUT_CONCURRENCY_FACTOR));
+	}
+
+	/**
+	 * Get value for REPLICATION from configuration.
+	 * 
+	 * @return type of replication <code>off</code>, <code>root</code> or
+	 *         <code>nRoot</code>
+	 * @throws IOException
+	 */
+	public static String getReplication() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return properties.getProperty(REPLICATION);
+	}
+
+	/**
+	 * Get value for PUT_APPROACH from configuration.
+	 * 
+	 * @return putting approach <code>optimistic</code> or <code>pessimistic</code>
+	 * @throws IOException
+	 */
+	public static String getPutApproach() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return properties.getProperty(PUT_APPROACH);
 	}
 
 }
