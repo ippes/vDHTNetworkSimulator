@@ -7,8 +7,14 @@ import java.io.Serializable;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
+import net.tomp2p.dht.StorageLayer.PutStatus;
 import net.tomp2p.peers.Number160;
+import net.tomp2p.peers.Number640;
+import net.tomp2p.peers.PeerAddress;
 
 public class Utils {
 
@@ -18,7 +24,7 @@ public class Utils {
 		// create new version key based on time stamp
 		return new Number160(timestamp);
 	}
-	
+
 	public static Number160 generateVersionKey(Serializable object) throws IOException {
 		// get time stamp
 		long timestamp = System.currentTimeMillis();
@@ -62,4 +68,29 @@ public class Utils {
 		return result;
 	}
 
+	public static boolean hasVersionFork(Map<PeerAddress, Map<Number640, Byte>> peerResult)
+			throws IllegalStateException {
+		// check result of all contacted peers
+		for (PeerAddress peerAddress : peerResult.keySet()) {
+			Map<Number640, Byte> putResult = peerResult.get(peerAddress);
+			if (putResult.size() != 1) {
+				throw new IllegalStateException(String.format(
+						"Received wrong sized data map. peerAddress = '%s' size = '%s'", peerAddress,
+						putResult.size()));
+			} else {
+				Entry<Number640, Byte> result = new TreeMap<Number640, Byte>(putResult).firstEntry();
+				if (result.getValue().intValue() == PutStatus.OK.ordinal()) {
+					continue;
+				} else if (result.getValue().intValue() == PutStatus.VERSION_FORK.ordinal()) {
+					// contains a version fork
+					return true;
+				} else {
+					throw new IllegalStateException(String.format(
+							"Received not handled put status as result. peerAddress = '%s' putStatus = '%s'",
+							peerAddress, PutStatus.values()[result.getValue().intValue()]));
+				}
+			}
+		}
+		return false;
+	}
 }
