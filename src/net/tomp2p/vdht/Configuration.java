@@ -302,7 +302,8 @@ public final class Configuration {
 	/**
 	 * Get value for PUT_APPROACH from configuration.
 	 * 
-	 * @return putting approach <code>optimistic</code> or <code>pessimistic</code>
+	 * @return putting approach <code>traditional</code>,
+	 *         <code>optimistic</code> or <code>pessimistic</code>
 	 * @throws IOException
 	 */
 	public static String getPutApproach() throws IOException {
