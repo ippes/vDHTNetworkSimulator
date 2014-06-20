@@ -4,31 +4,21 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NavigableMap;
 import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import net.tomp2p.dht.FutureGet;
-import net.tomp2p.dht.FuturePut;
 import net.tomp2p.dht.PeerDHT;
-import net.tomp2p.dht.StorageLayer.PutStatus;
 import net.tomp2p.futures.FutureBootstrap;
 import net.tomp2p.p2p.PeerBuilder;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
-import net.tomp2p.peers.Number640;
-import net.tomp2p.peers.PeerAddress;
 import net.tomp2p.peers.PeerMap;
 import net.tomp2p.peers.PeerMapConfiguration;
 import net.tomp2p.replication.IndirectReplication;
-import net.tomp2p.storage.Data;
 import net.tomp2p.vdht.churn.ChurnStrategy;
 import net.tomp2p.vdht.churn.StepwiseChurnStrategy;
 import net.tomp2p.vdht.churn.StepwiseRandomChurnStrategy;
@@ -326,13 +316,13 @@ public class LocalNetworkSimulator {
 				putStrategy = new TraditionalPutStrategy(key);
 				break;
 			case OptimisticPutStrategy.PUT_STRATEGY_NAME:
-				putStrategy = new OptimisticPutStrategy();
+				putStrategy = new OptimisticPutStrategy(key);
 				break;
 			case PesimisticPutStrategy.PUT_STRATEGY_NAME:
-				putStrategy = new PesimisticPutStrategy();
+				putStrategy = new PesimisticPutStrategy(key);
 				break;
 			default:
-				putStrategy = new OptimisticPutStrategy();
+				putStrategy = new OptimisticPutStrategy(key);
 				logger.warn("An unknown put approach '{}' was given. Selected '{}' as default put approach.",
 						putApproach, OptimisticPutStrategy.PUT_STRATEGY_NAME);
 			}

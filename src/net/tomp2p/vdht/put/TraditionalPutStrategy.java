@@ -22,13 +22,11 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Seppi
  */
-public class TraditionalPutStrategy implements PutStrategy {
+public final class TraditionalPutStrategy extends PutStrategy {
 
 	private final Logger logger = LoggerFactory.getLogger(TraditionalPutStrategy.class);
 
 	public static final String PUT_STRATEGY_NAME = "traditional";
-
-	private final Number480 key;
 
 	private boolean firstTime = true;
 	private long counter = 0;
@@ -36,7 +34,7 @@ public class TraditionalPutStrategy implements PutStrategy {
 	private String value = "";
 
 	public TraditionalPutStrategy(Number480 key) {
-		this.key = key;
+		super(key);
 	}
 
 	@Override
