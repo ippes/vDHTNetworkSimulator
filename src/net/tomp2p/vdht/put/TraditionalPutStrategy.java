@@ -12,6 +12,7 @@ import net.tomp2p.peers.Number480;
 import net.tomp2p.peers.Number640;
 import net.tomp2p.storage.Data;
 import net.tomp2p.vdht.Utils;
+import net.tomp2p.vdht.LocalNetworkSimulator.PutCoordinator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +33,12 @@ public final class TraditionalPutStrategy extends PutStrategy {
 	private Number160 basedOnKey = Number160.ZERO;
 	private String value = "";
 
-	public TraditionalPutStrategy(Number480 key) {
-		super(key);
+	public TraditionalPutStrategy(PutCoordinator putCoordinator, Number480 key) {
+		super(putCoordinator, key);
 	}
 
 	@Override
-	public void getUpdateAndPut(PeerDHT peer, char nextChar) throws Exception {
+	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// check if is executing the first time, skip getting
 		if (firstTime) {
 			firstTime = false;
@@ -59,8 +60,12 @@ public final class TraditionalPutStrategy extends PutStrategy {
 			value = (String) lastEntry.getValue().object();
 		}
 
+		// get latest char
+		char[] charArray = value.toCharArray();
+		char lastChar = charArray.length > 0 ? charArray[charArray.length - 1] : '`';
+
 		// append next one from alphabet
-		value += nextChar;
+		value += putCoordinator.requestNextChar(lastChar);
 
 		// create new data object
 		Data data = new Data(value);

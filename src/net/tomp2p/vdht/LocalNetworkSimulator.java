@@ -263,12 +263,14 @@ public class LocalNetworkSimulator {
 		}
 	}
 
-	private final class PutCoordinator {
+	public final class PutCoordinator {
 
 		private final ScheduledFuture<?>[] putFutures;
 		private final Number480 key;
 
+		private char refChar = '`';
 		private long counter = 0;
+		private long overwriteCounter = 0;
 
 		public PutCoordinator() throws IOException {
 			this.putFutures = new ScheduledFuture<?>[putConcurrencyFactor];
@@ -279,11 +281,17 @@ public class LocalNetworkSimulator {
 			}
 		}
 
-		public synchronized char requestNextChar() {
-			return (char) ('a' + (counter++ % 26));
+		public synchronized char requestNextChar(char lastChar) {
+			if (refChar != lastChar) {
+				overwriteCounter++;
+				logger.debug("Overwrite detected. Should be '{}' but is '{}'", refChar, lastChar);
+			}
+			refChar = (char) ('a' + (counter++ % 26));
+			return refChar;
 		}
 
 		public void shutdown() {
+			logger.debug("{} overwrites. key = '{}'", overwriteCounter, key);
 			for (int i = 0; i < putFutures.length; i++) {
 				putFutures[i].cancel(true);
 			}
@@ -297,28 +305,26 @@ public class LocalNetworkSimulator {
 
 		private final Number480 key;
 		private final PutStrategy putStrategy;
-		private final PutCoordinator putCoordinator;
 
 		public PutExecutor(Number480 key, ScheduledExecutorService scheduler, PutCoordinator putCoordinator)
 				throws IOException {
 			super(scheduler, Configuration.getPutDelayMinInMilliseconds(), Configuration
 					.getPutDelayMaxInMilliseconds(), Configuration.getNumPuts());
 			this.key = key;
-			this.putCoordinator = putCoordinator;
 
 			String putApproach = Configuration.getPutApproach();
 			switch (putApproach) {
 				case TraditionalPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new TraditionalPutStrategy(key);
+					putStrategy = new TraditionalPutStrategy(putCoordinator, key);
 					break;
 				case OptimisticPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new OptimisticPutStrategy(key);
+					putStrategy = new OptimisticPutStrategy(putCoordinator, key);
 					break;
 				case PesimisticPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new PesimisticPutStrategy(key);
+					putStrategy = new PesimisticPutStrategy(putCoordinator, key);
 					break;
 				default:
-					putStrategy = new OptimisticPutStrategy(key);
+					putStrategy = new OptimisticPutStrategy(putCoordinator, key);
 					logger.warn(
 							"An unknown put approach '{}' was given. Selected '{}' as default put approach.",
 							putApproach, OptimisticPutStrategy.PUT_STRATEGY_NAME);
@@ -334,7 +340,7 @@ public class LocalNetworkSimulator {
 				lock = keyLock.tryLock(peer.peerID());
 			}
 			try {
-				putStrategy.getUpdateAndPut(peer, putCoordinator.requestNextChar());
+				putStrategy.getUpdateAndPut(peer);
 			} finally {
 				keyLock.unlock(lock);
 			}
