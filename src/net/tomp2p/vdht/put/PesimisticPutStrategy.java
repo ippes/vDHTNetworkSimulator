@@ -17,7 +17,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	}
 
 	@Override
-	public void getUpdateAndPut(PeerDHT peer) throws Exception{
+	public void getUpdateAndPut(PeerDHT peer, char nextChar) throws Exception{
 
 	}
 

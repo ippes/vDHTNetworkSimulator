@@ -29,7 +29,6 @@ public final class TraditionalPutStrategy extends PutStrategy {
 	public static final String PUT_STRATEGY_NAME = "traditional";
 
 	private boolean firstTime = true;
-	private long counter = 0;
 	private Number160 basedOnKey = Number160.ZERO;
 	private String value = "";
 
@@ -38,7 +37,7 @@ public final class TraditionalPutStrategy extends PutStrategy {
 	}
 
 	@Override
-	public void getUpdateAndPut(PeerDHT peer) throws Exception {
+	public void getUpdateAndPut(PeerDHT peer, char nextChar) throws Exception {
 		// check if is executing the first time, skip getting
 		if (firstTime) {
 			firstTime = false;
@@ -61,8 +60,7 @@ public final class TraditionalPutStrategy extends PutStrategy {
 		}
 
 		// append next one from alphabet
-		char lower = (char) ('a' + (counter % 26));
-		value += lower;
+		value += nextChar;
 
 		// create new data object
 		Data data = new Data(value);
@@ -75,6 +73,8 @@ public final class TraditionalPutStrategy extends PutStrategy {
 		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), data)
 				.domainKey(key.domainKey()).versionKey(versionKey).start();
 		futurePut.awaitUninterruptibly();
+
+		logger.debug("Put. value = '{}'", value);
 	}
 
 }
