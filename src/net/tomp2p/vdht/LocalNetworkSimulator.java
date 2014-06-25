@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.futures.FutureBootstrap;
@@ -25,6 +23,7 @@ import net.tomp2p.vdht.put.OptimisticPutStrategy;
 import net.tomp2p.vdht.put.PesimisticPutStrategy;
 import net.tomp2p.vdht.put.PutStrategy;
 import net.tomp2p.vdht.put.TraditionalPutStrategy;
+import net.tomp2p.vdht.put.TraditionalVersionPutStrategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +41,7 @@ public class LocalNetworkSimulator {
 	private PeerDHT masterPeer;
 	private final List<PeerDHT> peers = new ArrayList<PeerDHT>();
 
-	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-	private ScheduledFuture<?> churnFuture;
+	private ChurnExecutor churnExecutor;
 	private PutCoordinator[] putCoordinators;
 
 	private final Random random = new Random();
@@ -81,8 +79,7 @@ public class LocalNetworkSimulator {
 
 			if (i == 0) {
 				// create master peer
-				masterPeer = new PeerDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap)
-						.allPeersReplicate(true).start());
+				masterPeer = new PeerDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap).start());
 
 				// enable replication if required
 				enableReplication(masterPeer);
@@ -113,11 +110,15 @@ public class LocalNetworkSimulator {
 				// don't enable any replication
 				break;
 			case "root":
-				new IndirectReplication(peer).start();
+				// set replication interval, start replication with 0-root approach
+				new IndirectReplication(peer).intervalMillis(
+						Configuration.getReplicationIntervalInMilliseconds()).start();
 				break;
 			case "nRoot":
 			default:
-				new IndirectReplication(peer).nRoot().start();
+				// set replication interval, start replication with n-root approach
+				new IndirectReplication(peer)
+						.intervalMillis(Configuration.getReplicationIntervalInMilliseconds()).nRoot().start();
 		}
 	}
 
@@ -125,8 +126,8 @@ public class LocalNetworkSimulator {
 		if (Configuration.getChurnStrategyName().equals("off")) {
 			logger.debug("No churn enabled.");
 		} else {
-			ChurnExecutor churnExecutor = new ChurnExecutor(scheduler);
-			churnFuture = scheduler.schedule(churnExecutor, churnExecutor.delay(), TimeUnit.MILLISECONDS);
+			churnExecutor = new ChurnExecutor();
+			churnExecutor.start();
 			logger.debug("Churn started.");
 		}
 	}
@@ -140,20 +141,14 @@ public class LocalNetworkSimulator {
 	}
 
 	public void shutDownNetwork() {
-		if (churnFuture != null) {
-			churnFuture.cancel(true);
-		}
 		if (putCoordinators != null) {
 			for (int i = 0; i < putCoordinators.length; i++) {
 				putCoordinators[i].shutdown();
 			}
 		}
 
-		scheduler.shutdown();
-		try {
-			scheduler.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-		} catch (InterruptedException e) {
-			logger.error("Couldn't wait for termination of scheduled tasks.", e);
+		if (churnExecutor != null) {
+			churnExecutor.shutdown();
 		}
 
 		for (PeerDHT peer : peers) {
@@ -180,9 +175,9 @@ public class LocalNetworkSimulator {
 		private final double churnJoinLeaveRate;
 		private final ChurnStrategy churnStrategy;
 
-		public ChurnExecutor(ScheduledExecutorService scheduler) throws IOException {
-			super(scheduler, Configuration.getChurnRateMinDelayInMilliseconds(), Configuration
-					.getChurnRateMaxDelayInMilliseconds(), -1);
+		public ChurnExecutor() throws IOException {
+			super(Executors.newScheduledThreadPool(1), Configuration.getChurnRateMinDelayInMilliseconds(),
+					Configuration.getChurnRateMaxDelayInMilliseconds(), -1);
 
 			this.churnJoinLeaveRate = Configuration.getChurnJoinLeaveRate();
 			logger.trace("churn join/leave rate = '{}'", churnJoinLeaveRate);
@@ -209,7 +204,6 @@ public class LocalNetworkSimulator {
 
 		@Override
 		public void execute() throws Exception {
-			logger.debug("Currently online peers = '{}'", peers.size() + 1);
 			// toggle join/leaves
 			double churnRate = random.nextDouble();
 			if (churnJoinLeaveRate < churnRate) {
@@ -221,20 +215,19 @@ public class LocalNetworkSimulator {
 
 		private void addPeersToTheNetwork() {
 			int numberOfPeerToJoin = churnStrategy.getNumJoiningPeers(peers.size());
-			logger.debug("Joining {} peers.", numberOfPeerToJoin);
+			logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin, peers.size() + 1);
 			for (int i = 0; i < numberOfPeerToJoin; i++) {
 				try {
 					// create new peer to join
 					PeerDHT newPeer = new PeerDHT(new PeerBuilder(new Number160(random)).masterPeer(
 							masterPeer.peer()).start());
-					new IndirectReplication(masterPeer).nRoot().start();
 
 					// enable replication if required
 					enableReplication(newPeer);
 
 					// bootstrap to master peer
-					FutureBootstrap futureBootstrap = newPeer.peer().bootstrap().peerAddress(masterPeer.peerAddress())
-							.start();
+					FutureBootstrap futureBootstrap = newPeer.peer().bootstrap()
+							.peerAddress(masterPeer.peerAddress()).start();
 					futureBootstrap.awaitUninterruptibly();
 
 					peers.add(newPeer);
@@ -247,7 +240,7 @@ public class LocalNetworkSimulator {
 
 		private void removePeersFromNetwork() {
 			int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers.size());
-			logger.debug("Leaving {} peers.", numberOfLeavingPeers);
+			logger.debug("Leaving {} peers. # peers = '{}'", numberOfLeavingPeers, peers.size() + 1);
 			for (int i = 0; i < numberOfLeavingPeers; i++) {
 				KeyLock<Number160>.RefCounterLock lock = null;
 				PeerDHT peer = null;
@@ -263,37 +256,28 @@ public class LocalNetworkSimulator {
 		}
 	}
 
-	public final class PutCoordinator {
+	private final class PutCoordinator {
 
-		private final ScheduledFuture<?>[] putFutures;
+		private final PutExecutor[] putExecutors;
 		private final Number480 key;
 
-		private char refChar = '`';
-		private long counter = 0;
-		private long overwriteCounter = 0;
+		private final ScheduledExecutorService scheduler = Executors
+				.newScheduledThreadPool(putConcurrencyFactor);
 
 		public PutCoordinator() throws IOException {
-			this.putFutures = new ScheduledFuture<?>[putConcurrencyFactor];
 			this.key = new Number480(random);
+			this.putExecutors = new PutExecutor[putConcurrencyFactor];
 			for (int i = 0; i < putConcurrencyFactor; i++) {
-				PutExecutor putExecutor = new PutExecutor(key, scheduler, this);
-				putFutures[i] = scheduler.schedule(putExecutor, putExecutor.delay(), TimeUnit.MILLISECONDS);
+				String id = String.valueOf((char) ('a' + i));
+				PutExecutor putExecutor = new PutExecutor(id, key, scheduler);
+				putExecutor.start();
+				putExecutors[i] = putExecutor;
 			}
-		}
-
-		public synchronized char requestNextChar(char lastChar) {
-			if (refChar != lastChar) {
-				overwriteCounter++;
-				logger.debug("Overwrite detected. Should be '{}' but is '{}'", refChar, lastChar);
-			}
-			refChar = (char) ('a' + (counter++ % 26));
-			return refChar;
 		}
 
 		public void shutdown() {
-			logger.debug("{} overwrites. key = '{}'", overwriteCounter, key);
-			for (int i = 0; i < putFutures.length; i++) {
-				putFutures[i].cancel(true);
+			for (int i = 0; i < putExecutors.length; i++) {
+				putExecutors[i].shutdown();
 			}
 		}
 
@@ -306,8 +290,7 @@ public class LocalNetworkSimulator {
 		private final Number480 key;
 		private final PutStrategy putStrategy;
 
-		public PutExecutor(Number480 key, ScheduledExecutorService scheduler, PutCoordinator putCoordinator)
-				throws IOException {
+		public PutExecutor(String id, Number480 key, ScheduledExecutorService scheduler) throws IOException {
 			super(scheduler, Configuration.getPutDelayMinInMilliseconds(), Configuration
 					.getPutDelayMaxInMilliseconds(), Configuration.getNumPuts());
 			this.key = key;
@@ -315,16 +298,19 @@ public class LocalNetworkSimulator {
 			String putApproach = Configuration.getPutApproach();
 			switch (putApproach) {
 				case TraditionalPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new TraditionalPutStrategy(putCoordinator, key);
+					putStrategy = new TraditionalPutStrategy(id, key);
+					break;
+				case TraditionalVersionPutStrategy.PUT_STRATEGY_NAME:
+					putStrategy = new TraditionalVersionPutStrategy(id, key);
 					break;
 				case OptimisticPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new OptimisticPutStrategy(putCoordinator, key);
+					putStrategy = new OptimisticPutStrategy(id, key);
 					break;
 				case PesimisticPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new PesimisticPutStrategy(putCoordinator, key);
+					putStrategy = new PesimisticPutStrategy(id, key);
 					break;
 				default:
-					putStrategy = new OptimisticPutStrategy(putCoordinator, key);
+					putStrategy = new OptimisticPutStrategy(id, key);
 					logger.warn(
 							"An unknown put approach '{}' was given. Selected '{}' as default put approach.",
 							putApproach, OptimisticPutStrategy.PUT_STRATEGY_NAME);

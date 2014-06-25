@@ -1,9 +1,6 @@
 package net.tomp2p.vdht;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -36,6 +33,7 @@ public final class Configuration {
 	private static final String PUT_DELAY_MAX_IN_MILLISECONDS = "putDelayMaxInMilliseconds";
 	private static final String PUT_DELAY_MIN_IN_MILLISECONDS = "putDelayMinInMilliseconds";
 	private static final String REPLICATION = "replication";
+	private static final String REPLICATION_INTERVAL_IN_MILLISECONDS = "replicationIntervalInMilliseconds";
 	private static final String PUT_APPROACH = "putApproach";
 
 	private static void loadProperties() throws IOException {
@@ -48,42 +46,11 @@ public final class Configuration {
 			in = new FileInputStream(configFile);
 			// load config file
 			properties.load(in);
-		} catch (FileNotFoundException e) {
-			// setup a default config file
-			createDefaultConfig();
 		} finally {
 			if (in != null) {
 				in.close();
 			}
 		}
-	}
-
-	private static void createDefaultConfig() throws IOException {
-		// create new config file
-		new File(configFile).createNewFile();
-
-		// set default values
-		properties.setProperty(RUNTIME_IN_MILLISECONDS, "10000");
-		properties.setProperty(PORT, "5000");
-		properties.setProperty(NUM_PEERS_MIN, "800");
-		properties.setProperty(NUM_PEERS_MAX, "1000");
-		properties.setProperty(CHURN_RATE_JOIN, "10");
-		properties.setProperty(CHURN_RATE_LEAVE, "10");
-		properties.setProperty(CHURN_RATE_MIN_DELAY_IN_MILLISECONDS, "500");
-		properties.setProperty(CHURN_RATE_MAX_DELAY_IN_MILLISECONDS, "1000");
-		properties.setProperty(CHURN_JOIN_LEAVE_RATE, "0.5");
-		properties.setProperty(CHURN_STRATEGY_NAME, "stepwiseRandom");
-		properties.setProperty(NUM_KEYS, "100");
-		properties.setProperty(NUM_PUTS, "10");
-		properties.setProperty(PUT_CONCURRENCY_FACTOR, "2");
-		properties.setProperty(PUT_DELAY_MAX_IN_MILLISECONDS, "2000");
-		properties.setProperty(PUT_DELAY_MIN_IN_MILLISECONDS, "500");
-		properties.setProperty(REPLICATION, "nRoot");
-		properties.setProperty(PUT_APPROACH, "optimistic");
-
-		// store default config file
-		FileOutputStream out = new FileOutputStream(configFile);
-		properties.store(out, null);
 	}
 
 	/**
@@ -195,9 +162,8 @@ public final class Configuration {
 	/**
 	 * Get value for CHURN_STRATEGY_NAME from configuration.
 	 * 
-	 * @return name of selected churn strategy <code>off</code>,
-	 *         <code>stepwise</code>, <code>stepwiseRandom</code> or
-	 *         <code>wild</code>
+	 * @return name of selected churn strategy <code>off</code>, <code>stepwise</code>,
+	 *         <code>stepwiseRandom</code> or <code>wild</code>
 	 * @throws IOException
 	 */
 	public static String getChurnStrategyName() throws IOException {
@@ -288,8 +254,7 @@ public final class Configuration {
 	/**
 	 * Get value for REPLICATION from configuration.
 	 * 
-	 * @return type of replication <code>off</code>, <code>root</code> or
-	 *         <code>nRoot</code>
+	 * @return type of replication <code>off</code>, <code>root</code> or <code>nRoot</code>
 	 * @throws IOException
 	 */
 	public static String getReplication() throws IOException {
@@ -302,8 +267,7 @@ public final class Configuration {
 	/**
 	 * Get value for PUT_APPROACH from configuration.
 	 * 
-	 * @return putting approach <code>traditional</code>,
-	 *         <code>optimistic</code> or <code>pessimistic</code>
+	 * @return putting approach <code>traditional</code>, <code>optimistic</code> or <code>pessimistic</code>
 	 * @throws IOException
 	 */
 	public static String getPutApproach() throws IOException {
@@ -311,6 +275,19 @@ public final class Configuration {
 			loadProperties();
 		}
 		return properties.getProperty(PUT_APPROACH);
+	}
+
+	/**
+	 * Get value for REPLICATION_INTERVAL_IN_MILLISECONDS from configuration.
+	 * 
+	 * @return interval to trigger the replication in milliseconds
+	 * @throws IOException
+	 */
+	public static int getReplicationIntervalInMilliseconds() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(REPLICATION_INTERVAL_IN_MILLISECONDS));
 	}
 
 }

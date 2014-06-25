@@ -3,14 +3,15 @@ package net.tomp2p.vdht;
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An abstract and runnable class for a repeating scheduled task. Schedules
- * {@link Executor#execute()}. Following tasks are appended by class itself.
+ * An abstract and runnable class for a repeating scheduled task. Schedules {@link Executor#execute()}.
+ * Following tasks are appended by class itself.
  * That's why varying delays are possible.
  * 
  * @author Seppi
@@ -20,6 +21,8 @@ public abstract class Executor implements Runnable {
 	private final Logger logger = LoggerFactory.getLogger(Executor.class);
 
 	private final Random random = new Random();
+
+	private ScheduledFuture<?> scheduledFuture;
 
 	private final ScheduledExecutorService scheduler;
 	private final int minDelayInMilliseconds;
@@ -31,8 +34,6 @@ public abstract class Executor implements Runnable {
 	/**
 	 * Constructor.
 	 * 
-	 * @param scheduler
-	 *            the scheduler on which this Runnable proceeds to execute
 	 * @param minDelayInMilliseconds
 	 *            minimum delay between two schedules
 	 * @param maxDelayInMilliseconds
@@ -50,6 +51,22 @@ public abstract class Executor implements Runnable {
 		this.maxDelayInMilliseconds = maxDelayInMilliseconds;
 		logger.trace("max put delay in milliseconds = '{}'", maxDelayInMilliseconds);
 		this.numberExecutes = numberExecutes;
+	}
+
+	public void start() {
+		scheduledFuture = scheduler.schedule(this, delay(), TimeUnit.MILLISECONDS);
+	}
+
+	public void shutdown() {
+		if (scheduledFuture != null) {
+			scheduledFuture.cancel(true);
+		}
+		scheduler.shutdown();
+		try {
+			scheduler.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+		} catch (InterruptedException e) {
+			logger.error("Couldn't wait for termination of scheduled tasks.", e);
+		}
 	}
 
 	public abstract void execute() throws Exception;
@@ -71,7 +88,7 @@ public abstract class Executor implements Runnable {
 				// increase counter
 				counterExecutes++;
 			}
-			
+
 			// schedule next task with a varying delay
 			int delay = delay();
 			logger.trace("scheduling in '{}' milliseconds.", delay);
@@ -90,4 +107,12 @@ public abstract class Executor implements Runnable {
 		return minDelayInMilliseconds + varyingDelta;
 	}
 
+	/**
+	 * Get number of executions of this task.
+	 * 
+	 * @return execution counter
+	 */
+	public long getExecutionCounter() {
+		return counterExecutes;
+	}
 }
