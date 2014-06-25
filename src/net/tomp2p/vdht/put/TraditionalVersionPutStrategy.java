@@ -16,19 +16,12 @@ import net.tomp2p.vdht.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A simple put strategy. Uses the usual {@link PeerDHT#put(Number160)} method
- * without the a vDHT approach.
- * 
- * @author Seppi
- */
 public final class TraditionalVersionPutStrategy extends PutStrategy {
 
 	private final Logger logger = LoggerFactory.getLogger(TraditionalVersionPutStrategy.class);
 
 	public static final String PUT_STRATEGY_NAME = "traditionalVersion";
 
-	private String value = "";
 	private Number160 basedOnKey = Number160.ZERO;
 
 	public TraditionalVersionPutStrategy(String id, Number480 key) {
@@ -44,18 +37,18 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 
 		// sort result
 		NavigableMap<Number640, Data> map = new TreeMap<Number640, Data>(futureGet.dataMap());
+
+		// update value (append task's id)
+		String value;
 		if (map.isEmpty()) {
 			// reset value
-			value = "";
+			value = id;
 		} else {
 			// retrieve latest entry
 			Entry<Number640, Data> lastEntry = map.lastEntry();
 			basedOnKey = lastEntry.getKey().versionKey();
-			value = (String) lastEntry.getValue().object();
+			value = (String) lastEntry.getValue().object() + id;
 		}
-
-		// append task's id
-		value += id;
 
 		// create new data object
 		Data data = new Data(value);
