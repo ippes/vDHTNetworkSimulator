@@ -15,8 +15,6 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 	public static final String PUT_STRATEGY_NAME = "traditional";
 
-	private String value = "";
-
 	public TraditionalPutStrategy(String id, Number480 key) {
 		super(id, key);
 	}
@@ -28,27 +26,22 @@ public final class TraditionalPutStrategy extends PutStrategy {
 				.contentKey(key.contentKey()).getLatest().start();
 		futureGet.awaitUninterruptibly();
 
-		// get result
-		Data result = futureGet.data();
+		// get result and update it (append id)
+		String value;
+		Data result = futureGet.data();		
 		if (result == null) {
 			// reset value
-			value = "";
+			value = id;
 		} else {
-			value = (String) result.object();
+			value = (String) result.object() + id;
 		}
 
-		// append task's id
-		value += id;
-
-		// create new data object
-		Data data = new Data(value);
-
 		// put updated version into network
-		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), data)
+		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), new Data(value))
 				.domainKey(key.domainKey()).start();
 		futurePut.awaitUninterruptibly();
 
-		logger.trace("Executed put. value = '{}' key ='{}' id = '{}'", value, key, id);
+		logger.debug("Executed put. value = '{}' key ='{}' id = '{}'", value, key, id);
 	}
 
 }
