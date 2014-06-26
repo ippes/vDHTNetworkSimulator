@@ -33,7 +33,7 @@ public class Main {
 			Thread.sleep(runtimeInMilliseconds);
 
 			logger.debug("Stopping network simulator.");
-			network.shutDownNetwork();
+			network.shutDown();
 		} catch (Exception e) {
 			logger.error("Caught an unexpected exception.", e);
 			System.exit(0);

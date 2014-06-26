@@ -140,25 +140,30 @@ public class LocalNetworkSimulator {
 		logger.debug("Putting started.");
 	}
 
-	public void shutDownNetwork() {
+	public void shutDown() {
 		if (putCoordinators != null) {
 			for (int i = 0; i < putCoordinators.length; i++) {
 				putCoordinators[i].shutdown();
 			}
 		}
+		logger.debug("Stopped put coordinators.");
 
 		if (churnExecutor != null) {
 			churnExecutor.shutdown();
 		}
+		logger.debug("Stopped churn.");
 
 		for (PeerDHT peer : peers) {
 			logger.trace("Shutdown peer. peer id = '{}'", peer.peerID());
 			peer.shutdown().awaitUninterruptibly();
 		}
 		peers.clear();
+		logger.debug("Shutdown of peers finished.");
+		
 		if (masterPeer != null) {
 			masterPeer.shutdown().awaitUninterruptibly();
 		}
+		logger.debug("Shutdown of master peer finished.");
 		logger.debug("Shutdown of network finished.");
 	}
 
@@ -295,7 +300,7 @@ public class LocalNetworkSimulator {
 					.getPutDelayMaxInMilliseconds(), Configuration.getNumPuts());
 			this.key = key;
 
-			String putApproach = Configuration.getPutApproach();
+			String putApproach = Configuration.getPutStrategyName();
 			switch (putApproach) {
 				case TraditionalPutStrategy.PUT_STRATEGY_NAME:
 					putStrategy = new TraditionalPutStrategy(id, key);
