@@ -16,25 +16,35 @@ public final class Configuration {
 	// config file name
 	private static final String configFile = "config.config";
 
-	// config file attribute names
-	private static final String RUNTIME_IN_MILLISECONDS = "runtimeInMilliseconds";
+	/** config file attribute names **/
+
+	// general settings
 	private static final String PORT = "port";
+	private static final String RUNTIME_IN_MILLISECONDS = "runtimeInMilliseconds";
 	private static final String NUM_PEERS_MIN = "numPeersMin";
 	private static final String NUM_PEERS_MAX = "numPeersMax";
+	private static final String TTL_CHECK_INTERVAL_IN_MILLISECONDS = "ttlCheckIntervalInMilliseconds";
+
+	// replication settings
+	private static final String REPLICATION = "replication";
+	private static final String REPLICATION_FACTOR = "replicationFactor";
+	private static final String REPLICATION_INTERVAL_IN_MILLISECONDS = "replicationIntervalInMilliseconds";
+
+	// churn settings
 	private static final String CHURN_RATE_JOIN = "churnRateJoin";
 	private static final String CHURN_RATE_LEAVE = "churnRateLeave";
 	private static final String CHURN_RATE_MIN_DELAY_IN_MILLISECONDS = "churnRateMinDelayInMilliseconds";
 	private static final String CHURN_RATE_MAX_DELAY_IN_MILLISECONDS = "churnRateMaxDelayInMilliseconds";
 	private static final String CHURN_JOIN_LEAVE_RATE = "churnJoinLeaveRate";
 	private static final String CHURN_STRATEGY_NAME = "churnStrategyName";
+
+	// put settings
 	private static final String NUM_KEYS = "numKeys";
 	private static final String NUM_PUTS = "numPuts";
 	private static final String PUT_CONCURRENCY_FACTOR = "putConcurrencyFactor";
 	private static final String PUT_DELAY_MAX_IN_MILLISECONDS = "putDelayMaxInMilliseconds";
 	private static final String PUT_DELAY_MIN_IN_MILLISECONDS = "putDelayMinInMilliseconds";
-	private static final String REPLICATION = "replication";
-	private static final String REPLICATION_INTERVAL_IN_MILLISECONDS = "replicationIntervalInMilliseconds";
-	private static final String PUT_APPROACH = "putApproach";
+	private static final String PUT_STRATEGY_NAME = "putStrategyName";
 
 	private static void loadProperties() throws IOException {
 		// create new properties
@@ -265,16 +275,16 @@ public final class Configuration {
 	}
 
 	/**
-	 * Get value for PUT_APPROACH from configuration.
+	 * Get value for PUT_STRATEGY_NAME from configuration.
 	 * 
 	 * @return putting approach <code>traditional</code>, <code>optimistic</code> or <code>pessimistic</code>
 	 * @throws IOException
 	 */
-	public static String getPutApproach() throws IOException {
+	public static String getPutStrategyName() throws IOException {
 		if (properties == null) {
 			loadProperties();
 		}
-		return properties.getProperty(PUT_APPROACH);
+		return properties.getProperty(PUT_STRATEGY_NAME);
 	}
 
 	/**
@@ -288,6 +298,32 @@ public final class Configuration {
 			loadProperties();
 		}
 		return Integer.parseInt(properties.getProperty(REPLICATION_INTERVAL_IN_MILLISECONDS));
+	}
+
+	/**
+	 * Get value for TTL_CHECK_INTERVAL_IN_MILLISECONDS from configuration.
+	 * 
+	 * @return frequency to check storage for expired data
+	 * @throws IOException
+	 */
+	public static int getTTLCheckIntervalInMilliseconds() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(TTL_CHECK_INTERVAL_IN_MILLISECONDS));
+	}
+
+	/**
+	 * Get value for REPLICATION_FACTOR from configuration.
+	 * 
+	 * @return size of replica set
+	 * @throws IOException
+	 */
+	public static int getReplicationFactor() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(REPLICATION_FACTOR));
 	}
 
 }
