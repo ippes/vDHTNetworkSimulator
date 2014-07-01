@@ -29,6 +29,8 @@ public abstract class Executor implements Runnable {
 	private final int maxDelayInMilliseconds;
 	private final int numberExecutes;
 
+	private boolean shutdown = false;
+
 	protected long counterExecutes = 0;
 
 	/**
@@ -58,15 +60,12 @@ public abstract class Executor implements Runnable {
 	}
 
 	public void shutdown() {
+		shutdown = true;
+
 		if (scheduledFuture != null) {
 			scheduledFuture.cancel(true);
 		}
-		scheduler.shutdown();
-		try {
-			scheduler.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-		} catch (InterruptedException e) {
-			logger.error("Couldn't wait for termination of scheduled tasks.", e);
-		}
+		scheduler.shutdownNow();
 	}
 
 	public abstract void execute() throws Exception;
@@ -77,8 +76,16 @@ public abstract class Executor implements Runnable {
 			// execute task
 			execute();
 		} catch (Exception e) {
+			if (shutdown) {
+				return;
+			}
+
 			logger.error("Caught an unexpected exception.", e);
 		} finally {
+			if (shutdown) {
+				return;
+			}
+
 			// check if a rescheduling is needed
 			if (counterExecutes < 0) {
 				return;
