@@ -8,6 +8,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import net.tomp2p.dht.PeerDHT;
+import net.tomp2p.dht.StorageLayer;
+import net.tomp2p.dht.StorageMemory;
 import net.tomp2p.futures.FutureBootstrap;
 import net.tomp2p.p2p.PeerBuilder;
 import net.tomp2p.peers.Number160;
@@ -52,6 +54,9 @@ public class LocalNetworkSimulator {
 	private final int port;
 	private final int numKeys;
 	private final int putConcurrencyFactor;
+	private final int ttlCheckIntervalInMilliseconds;
+	private final int replicationFactor;
+	private final int replicationIntervalInMilliseconds;
 
 	public LocalNetworkSimulator() throws IOException {
 		this.numPeersMax = Configuration.getNumPeersMax();
@@ -64,6 +69,12 @@ public class LocalNetworkSimulator {
 		logger.trace("# keys = '{}'", numKeys);
 		this.putConcurrencyFactor = Configuration.getPutConcurrencyFactor();
 		logger.trace("put concurrency factor = '{}'", putConcurrencyFactor);
+		this.ttlCheckIntervalInMilliseconds = Configuration.getTTLCheckIntervalInMilliseconds();
+		logger.trace("ttl check interval in milliseconds = '{}'", ttlCheckIntervalInMilliseconds);
+		this.replicationFactor = Configuration.getReplicationFactor();
+		logger.trace("replication factor = '{}'", replicationFactor);
+		this.replicationIntervalInMilliseconds = Configuration.getReplicationIntervalInMilliseconds();
+		logger.trace("replication interval in milliseconds = '{}'", replicationIntervalInMilliseconds);
 	}
 
 	public void createNetwork() throws Exception {
@@ -79,7 +90,8 @@ public class LocalNetworkSimulator {
 
 			if (i == 0) {
 				// create master peer
-				masterPeer = new PeerDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap).start());
+				masterPeer = new PeerDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap).start(),
+						new StorageLayer(new StorageMemory(ttlCheckIntervalInMilliseconds)));
 
 				// enable replication if required
 				enableReplication(masterPeer);
@@ -88,7 +100,8 @@ public class LocalNetworkSimulator {
 			} else {
 				// create peer
 				PeerDHT peer = new PeerDHT(new PeerBuilder(peerId).peerMap(peerMap)
-						.masterPeer(masterPeer.peer()).start());
+						.masterPeer(masterPeer.peer()).start(), new StorageLayer(new StorageMemory(
+						ttlCheckIntervalInMilliseconds)));
 
 				// enable replication if required
 				enableReplication(peer);
@@ -111,14 +124,14 @@ public class LocalNetworkSimulator {
 				break;
 			case "root":
 				// set replication interval, start replication with 0-root approach
-				new IndirectReplication(peer).intervalMillis(
-						Configuration.getReplicationIntervalInMilliseconds()).start();
+				new IndirectReplication(peer).intervalMillis(replicationIntervalInMilliseconds)
+						.replicationFactor(replicationFactor).start();
 				break;
 			case "nRoot":
 			default:
 				// set replication interval, start replication with n-root approach
-				new IndirectReplication(peer)
-						.intervalMillis(Configuration.getReplicationIntervalInMilliseconds()).nRoot().start();
+				new IndirectReplication(peer).intervalMillis(replicationIntervalInMilliseconds).nRoot()
+						.replicationFactor(replicationFactor).start();
 		}
 	}
 
@@ -159,7 +172,7 @@ public class LocalNetworkSimulator {
 		}
 		peers.clear();
 		logger.debug("Shutdown of peers finished.");
-		
+
 		if (masterPeer != null) {
 			masterPeer.shutdown().awaitUninterruptibly();
 		}
@@ -225,7 +238,8 @@ public class LocalNetworkSimulator {
 				try {
 					// create new peer to join
 					PeerDHT newPeer = new PeerDHT(new PeerBuilder(new Number160(random)).masterPeer(
-							masterPeer.peer()).start());
+							masterPeer.peer()).start(), new StorageLayer(new StorageMemory(
+							ttlCheckIntervalInMilliseconds)));
 
 					// enable replication if required
 					enableReplication(newPeer);
