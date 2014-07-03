@@ -45,6 +45,8 @@ public final class Configuration {
 	private static final String PUT_DELAY_MAX_IN_MILLISECONDS = "putDelayMaxInMilliseconds";
 	private static final String PUT_DELAY_MIN_IN_MILLISECONDS = "putDelayMinInMilliseconds";
 	private static final String PUT_STRATEGY_NAME = "putStrategyName";
+	private static final String PUT_TTL_IN_SECONDS = "putTTLInSeconds";
+	private static final String PUT_PREPARE_TTL_IN_SECONDS = "putPrepareTTLInSeconds";
 
 	private static void loadProperties() throws IOException {
 		// create new properties
@@ -324,6 +326,32 @@ public final class Configuration {
 			loadProperties();
 		}
 		return Integer.parseInt(properties.getProperty(REPLICATION_FACTOR));
+	}
+
+	/**
+	 * Get value for PUT_TTL_IN_SECONDS from configuration.
+	 * 
+	 * @return time to live of a stored (and confirmed) object
+	 * @throws IOException
+	 */
+	public static int getPutTTLInSeconds() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(PUT_TTL_IN_SECONDS));
+	}
+
+	/**
+	 * Get value for PUT_PREPARE_TTL_IN_SECONDS from configuration.
+	 * 
+	 * @return time to live of a stored but not not confimred (prepared) object
+	 * @throws IOException
+	 */
+	public static int getPutPrepareTTLInSeconds() throws IOException {
+		if (properties == null) {
+			loadProperties();
+		}
+		return Integer.parseInt(properties.getProperty(PUT_PREPARE_TTL_IN_SECONDS));
 	}
 
 }

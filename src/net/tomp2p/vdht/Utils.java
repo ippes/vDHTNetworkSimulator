@@ -1,78 +1,53 @@
 package net.tomp2p.vdht;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 
 import net.tomp2p.dht.StorageLayer.PutStatus;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number640;
 import net.tomp2p.peers.PeerAddress;
+import net.tomp2p.rpc.DigestResult;
+import net.tomp2p.storage.Data;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Utils {
 
-	public static Number160 generateVersionKey() {
-		// get time stamp
-		long timestamp = System.currentTimeMillis();
-		// create new version key based on time stamp
-		return new Number160(timestamp);
+	private final static Logger logger = LoggerFactory.getLogger(Utils.class);
+
+	public static Number160 generateVersionKey(Number160 basedOnKey, String value) throws IOException {
+		// increase counter
+		long counter = basedOnKey.timestamp() + 1;
+		// create new version key based on increased counter and hash
+		return new Number160(counter, Number160.createHash(value).number96());
 	}
 
-	public static Number160 generateVersionKey(Serializable object) throws IOException {
-		// get time stamp
-		long timestamp = System.currentTimeMillis();
-		// get a MD5 hash of the object itself
-		byte[] hash = generateMD5Hash(serializeObject(object));
-		// create new version key based on time stamp and hash
-		return new Number160(timestamp, new Number160(Arrays.copyOf(hash, Number160.BYTE_ARRAY_SIZE)));
-	}
-
-	private static byte[] generateMD5Hash(byte[] data) {
-		MessageDigest md = null;
-		try {
-			md = MessageDigest.getInstance("MD5");
-		} catch (NoSuchAlgorithmException e) {
-		}
-		md.reset();
-		md.update(data, 0, data.length);
-		return md.digest();
-	}
-
-	private static byte[] serializeObject(Serializable object) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = null;
-		byte[] result = null;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(object);
-			result = baos.toByteArray();
-		} catch (IOException e) {
-			throw e;
-		} finally {
-			try {
-				if (oos != null)
-					oos.close();
-				if (baos != null)
-					baos.close();
-			} catch (IOException e) {
-				throw e;
-			}
-		}
-		return result;
-	}
-
-	public static boolean hasVersionFork(Map<PeerAddress, Map<Number640, Byte>> peerResult)
+	/**
+	 * Checks given peer result map for any {@link PutStatus#VERSION_FORK} response.
+	 * 
+	 * @param dataMap
+	 *            raw result from all contacted peers
+	 * @return <code>true</code> if a version fork occurred, <code>false<code/> if not
+	 * @throws IllegalStateException
+	 */
+	public static boolean hasVersionForkAfterPut(Map<PeerAddress, Map<Number640, Byte>> dataMap)
 			throws IllegalStateException {
-		// check result of all contacted peers
-		for (PeerAddress peerAddress : peerResult.keySet()) {
-			Map<Number640, Byte> putResult = peerResult.get(peerAddress);
+		if (dataMap == null || dataMap.isEmpty()) {
+			return false;
+		}
+
+		// go through all responding peers
+		for (PeerAddress peerAddress : dataMap.keySet()) {
+			Map<Number640, Byte> putResult = dataMap.get(peerAddress);
 			if (putResult.size() != 1) {
 				throw new IllegalStateException(String.format(
 						"Received wrong sized data map. peerAddress = '%s' size = '%s'", peerAddress,
@@ -85,13 +60,179 @@ public class Utils {
 					// contains a version fork
 					return true;
 				} else {
-					throw new IllegalStateException(String.format(
-							"Received not handled put status as result. peerAddress = '%s' putStatus = '%s'",
-							peerAddress, PutStatus.values()[result.getValue().intValue()]));
+					if (result.getValue().intValue() > 0) {
+						throw new IllegalStateException(
+								String.format(
+										"Received not handled put status as result. peerAddress = '%s' putStatus = '%s'",
+										peerAddress, PutStatus.values()[result.getValue().intValue()]));
+					} else {
+						throw new IllegalStateException(String.format(
+								"Received unkown put status as result. peerAddress = '%s' putStatus = '{}'",
+								peerAddress, result.getValue().intValue()));
+					}
 				}
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Checks given peer result map if a peer has responded with more than one version.
+	 * 
+	 * @param latestVersions
+	 *            raw result from all contacted peers
+	 * @return <code>true</code> if a version fork occurred, <code>false<code/> if not
+	 * @throws IllegalStateException
+	 */
+	public static boolean hasVersionForkAfterGet(Map<Number640, Data> latestVersions)
+			throws IllegalStateException {
+		if (latestVersions.size() > 1) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Checks if peers responded with out dated versions. If a version (in the digest history) is basing on a
+	 * returned latest version we have a version delay.
+	 * 
+	 * @param latestVersions
+	 *            raw result from all contacted peers
+	 * @param versionTree
+	 *            digest history
+	 * @return <code>true</code> if a version delay occurred, <code>false</code> if not
+	 */
+	public static boolean hasVersionDelay(Map<Number640, Data> latestVersions,
+			Map<Number640, Set<Number160>> versionTree) {
+		// check if the version key of a latest version appears as a based on key
+		for (Number640 key : latestVersions.keySet()) {
+			for (Collection<Number160> basedOnKeys : versionTree.values()) {
+				for (Number160 bKey : basedOnKeys) {
+					if (key.versionKey() == bKey) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Joins the returned digest from all peers into a single map. Map will have no double entries.
+	 * 
+	 * @param rawDigest
+	 *            digest result from all requested peers
+	 * @return
+	 *         a version map
+	 */
+	public static NavigableMap<Number640, Set<Number160>> buildVersionTree(
+			Map<PeerAddress, DigestResult> rawDigest) {
+		NavigableMap<Number640, Set<Number160>> versionTree = new TreeMap<Number640, Set<Number160>>();
+		for (PeerAddress peerAddress : rawDigest.keySet()) {
+			for (Number640 key : rawDigest.get(peerAddress).keyDigest().keySet()) {
+				for (Number160 bKey : rawDigest.get(peerAddress).keyDigest().get(key)) {
+					if (!versionTree.containsKey(key)) {
+						versionTree.put(key, new HashSet<Number160>());
+					}
+					versionTree.get(key).add(bKey);
+				}
+			}
+		}
+		return versionTree;
+	}
+
+	/**
+	 * Joins all latest versions in one map.
+	 * 
+	 * @param peerDataMap
+	 *            get result from all contacted peers
+	 * @return map containing all latest versions
+	 */
+	public static Map<Number640, Data> getLatestVersions(Map<PeerAddress, Map<Number640, Data>> peerDataMap) {
+		Map<Number640, Data> latestVersions = new HashMap<Number640, Data>();
+		for (PeerAddress peerAddress : peerDataMap.keySet()) {
+			Map<Number640, Data> dataMap = peerDataMap.get(peerAddress);
+			if (dataMap == null || dataMap.isEmpty()) {
+				// ignore this peer
+				logger.warn("Received empty map. responder = '{}'", peerAddress);
+			} else {
+				NavigableMap<Number640, Data> sortedDataMap = new TreeMap<Number640, Data>(dataMap);
+				for (Number640 key : sortedDataMap.keySet()) {
+					latestVersions.put(key, sortedDataMap.get(key));
+				}
+			}
+		}
+		return latestVersions;
+	}
+
+	public static String getVersionCountersFromPeers(Map<PeerAddress, Map<Number640, Data>> peerResult) {
+		String result = "| ";
+		for (PeerAddress peerAddress : peerResult.keySet()) {
+			Map<Number640, Data> dataMap = peerResult.get(peerAddress);
+			result += getVersionCountersFromMap(dataMap) + "| ";
+		}
+		return result;
+	}
+
+	public static String getVersionCountersFromMap(Map<Number640, Data> dataMap) {
+		String result = "";
+		for (Number640 key : dataMap.keySet()) {
+			result += key.versionKey().timestamp() + " ";
+		}
+		return result;
+	}
+
+	public static String getVersionKeysFromPeers(Map<PeerAddress, Map<Number640, Data>> peerResult) {
+		String result = "| ";
+		for (PeerAddress peerAddress : peerResult.keySet()) {
+			Map<Number640, Data> dataMap = peerResult.get(peerAddress);
+			result += getVersionKeysFromMap(dataMap) + "| ";
+		}
+		return result;
+	}
+
+	public static String getVersionKeysFromMap(Map<Number640, Data> dataMap) {
+		String result = "";
+		for (Number640 key : dataMap.keySet()) {
+			result += key.versionKey() + " ";
+		}
+		return result;
+	}
+
+	public static String getVersionCountersFromDigest(Map<PeerAddress, DigestResult> rawDigest) {
+		String tmp = "| ";
+		for (PeerAddress peerAddress : rawDigest.keySet()) {
+			DigestResult digestResult = rawDigest.get(peerAddress);
+			tmp += getVersionCountersFromDigest(digestResult.keyDigest()) + "| ";
+		}
+		return tmp;
+	}
+
+	public static String getVersionCountersFromDigest(NavigableMap<Number640, Collection<Number160>> digestMap) {
+		String tmp = "| ";
+		for (Number640 key : digestMap.keySet()) {
+			tmp += key.versionKey().timestamp() + " | ";
+		}
+		return tmp;
+	}
+
+	public static String getVersionKeysFromDigest(Map<PeerAddress, DigestResult> rawDigest) {
+		String tmp = "| ";
+		for (PeerAddress peerAddress : rawDigest.keySet()) {
+			DigestResult digestResult = rawDigest.get(peerAddress);
+			tmp += getVersionKeysFromDigest(digestResult.keyDigest()) + "| ";
+		}
+		return tmp;
+	}
+
+	public static String getVersionKeysFromDigest(NavigableMap<Number640, Collection<Number160>> digestMap) {
+		String tmp = "| ";
+		for (Number640 key : digestMap.keySet()) {
+			tmp += key.versionKey().timestamp() + " | ";
+		}
+		return tmp;
 	}
 
 }

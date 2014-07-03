@@ -19,20 +19,20 @@ public class Main {
 			// initialize simulation
 			LocalNetworkSimulator network = new LocalNetworkSimulator();
 
-			logger.debug("Setting up the network simulator.");
+			logger.info("Setting up the network simulator.");
 			network.createNetwork();
 
-			logger.debug("Start simulating churn.");
+			logger.info("Start simulating churn.");
 			network.startChurn();
 
-			logger.debug("Start putting data.");
+			logger.info("Start putting data.");
 			network.startPutting();
 
 			int runtimeInMilliseconds = Configuration.getRuntimeInMilliseconds();
-			logger.debug("Running simulation for {} milliseconds.", runtimeInMilliseconds);
+			logger.info("Running simulation for {} milliseconds.", runtimeInMilliseconds);
 			Thread.sleep(runtimeInMilliseconds);
 
-			logger.debug("Stopping network simulator.");
+			logger.info("Stopping network simulator.");
 			network.shutDown();
 		} catch (Exception e) {
 			logger.error("Caught an unexpected exception.", e);
