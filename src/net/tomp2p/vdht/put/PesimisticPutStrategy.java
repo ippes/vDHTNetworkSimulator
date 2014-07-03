@@ -64,7 +64,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					.domainKey(key.domainKey()).versionKey(result.versionKey).start();
 			futurePut.awaitUninterruptibly();
 
-			logger.debug("Put. versionCounter = '{}'", result.versionKey.timestamp());
+			logger.debug("Put. version= '{}'", result.versionKey);
 
 			// check for any version forks
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
@@ -101,7 +101,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 			// get raw result from all contacted peers
 			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet.rawData();
-			logger.debug("Got. versions = '{}'", Utils.getVersionCountersFromPeers(rawData));
+			logger.debug("Got. versions = '{}'", Utils.getVersionKeysFromPeers(rawData));
 			Map<PeerAddress, DigestResult> rawDigest = futureGet.rawDigest();
 
 			// build the version tree from raw digest result;
@@ -112,13 +112,12 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 			if (Utils.hasVersionDelay(latestVersions, versionTree) || isDelayed(versionTree)) {
 				logger.warn("Detected a version delay. versions = '{}'",
-						Utils.getVersionCountersFromPeers(rawData));
+						Utils.getVersionKeysFromMap(latestVersions));
 				waitAMoment();
 				continue;
 			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
 				logger.warn("Got a version fork. Merging. versions = '{}'  latestVersions = '{}'",
-						Utils.getVersionCountersFromPeers(rawData),
-						Utils.getVersionCountersFromMap(latestVersions));
+						Utils.getVersionKeysFromPeers(rawData), Utils.getVersionKeysFromMap(latestVersions));
 				return updateMerge(latestVersions);
 			} else {
 				if (latestVersions.isEmpty()) {

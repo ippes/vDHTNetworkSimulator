@@ -153,6 +153,16 @@ public class LocalNetworkSimulator {
 		logger.debug("Putting started.");
 	}
 
+	public boolean isRunning() {
+		boolean shutdown = true;
+		for (PutCoordinator putCoordinator : putCoordinators) {
+			for (PutExecutor putExecutor : putCoordinator.putExecutors) {
+				shutdown &= putExecutor.isShutdown();
+			}
+		}
+		return !shutdown;
+	}
+
 	public void shutDown() {
 		if (putCoordinators != null) {
 			for (int i = 0; i < putCoordinators.length; i++) {

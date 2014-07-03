@@ -29,8 +29,14 @@ public class Main {
 			network.startPutting();
 
 			int runtimeInMilliseconds = Configuration.getRuntimeInMilliseconds();
-			logger.info("Running simulation for {} milliseconds.", runtimeInMilliseconds);
-			Thread.sleep(runtimeInMilliseconds);
+			if (runtimeInMilliseconds > 0) {
+				logger.info("Running simulation for {} milliseconds.", runtimeInMilliseconds);
+				Thread.sleep(runtimeInMilliseconds);
+			} else {
+				while (network.isRunning()){
+					Thread.sleep(500);
+				}
+			}
 
 			logger.info("Stopping network simulator.");
 			network.shutDown();
