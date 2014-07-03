@@ -61,14 +61,13 @@ public class Utils {
 					return true;
 				} else {
 					if (result.getValue().intValue() > 0) {
-						throw new IllegalStateException(
-								String.format(
-										"Received not handled put status as result. peerAddress = '%s' putStatus = '%s'",
-										peerAddress, PutStatus.values()[result.getValue().intValue()]));
+						logger.error(
+								"Received not handled put status as result. peerAddress = '{}' putStatus = '{}'",
+								peerAddress, PutStatus.values()[result.getValue().intValue()]);
 					} else {
-						throw new IllegalStateException(String.format(
-								"Received unkown put status as result. peerAddress = '%s' putStatus = '{}'",
-								peerAddress, result.getValue().intValue()));
+						logger.error(
+								"Received unkown put status as result. peerAddress = '{}' putStatus = '{}'",
+								peerAddress, result.getValue().intValue());
 					}
 				}
 			}
@@ -105,13 +104,12 @@ public class Utils {
 	 */
 	public static boolean hasVersionDelay(Map<Number640, Data> latestVersions,
 			Map<Number640, Set<Number160>> versionTree) {
-		// check if the version key of a latest version appears as a based on key
-		for (Number640 key : latestVersions.keySet()) {
-			for (Collection<Number160> basedOnKeys : versionTree.values()) {
-				for (Number160 bKey : basedOnKeys) {
-					if (key.versionKey() == bKey) {
-						return true;
-					}
+		for (Number640 version : versionTree.keySet()) {
+			for (Number160 basedOnKey : versionTree.get(version)) {
+				Number640 bKey = new Number640(version.locationKey(), version.domainKey(),
+						version.contentKey(), basedOnKey);
+				if (latestVersions.containsKey(bKey)) {
+					return true;
 				}
 			}
 		}
@@ -167,28 +165,11 @@ public class Utils {
 		return latestVersions;
 	}
 
-	public static String getVersionCountersFromPeers(Map<PeerAddress, Map<Number640, Data>> peerResult) {
-		String result = "| ";
-		for (PeerAddress peerAddress : peerResult.keySet()) {
-			Map<Number640, Data> dataMap = peerResult.get(peerAddress);
-			result += getVersionCountersFromMap(dataMap) + "| ";
-		}
-		return result;
-	}
-
-	public static String getVersionCountersFromMap(Map<Number640, Data> dataMap) {
-		String result = "";
-		for (Number640 key : dataMap.keySet()) {
-			result += key.versionKey().timestamp() + " ";
-		}
-		return result;
-	}
-
 	public static String getVersionKeysFromPeers(Map<PeerAddress, Map<Number640, Data>> peerResult) {
-		String result = "| ";
+		String result = "";
 		for (PeerAddress peerAddress : peerResult.keySet()) {
 			Map<Number640, Data> dataMap = peerResult.get(peerAddress);
-			result += getVersionKeysFromMap(dataMap) + "| ";
+			result += getVersionKeysFromMap(dataMap) + " ";
 		}
 		return result;
 	}
@@ -201,36 +182,27 @@ public class Utils {
 		return result;
 	}
 
-	public static String getVersionCountersFromDigest(Map<PeerAddress, DigestResult> rawDigest) {
-		String tmp = "| ";
-		for (PeerAddress peerAddress : rawDigest.keySet()) {
-			DigestResult digestResult = rawDigest.get(peerAddress);
-			tmp += getVersionCountersFromDigest(digestResult.keyDigest()) + "| ";
-		}
-		return tmp;
-	}
-
-	public static String getVersionCountersFromDigest(NavigableMap<Number640, Collection<Number160>> digestMap) {
-		String tmp = "| ";
-		for (Number640 key : digestMap.keySet()) {
-			tmp += key.versionKey().timestamp() + " | ";
-		}
-		return tmp;
-	}
-
 	public static String getVersionKeysFromDigest(Map<PeerAddress, DigestResult> rawDigest) {
-		String tmp = "| ";
+		String tmp = "";
 		for (PeerAddress peerAddress : rawDigest.keySet()) {
 			DigestResult digestResult = rawDigest.get(peerAddress);
-			tmp += getVersionKeysFromDigest(digestResult.keyDigest()) + "| ";
+			tmp += getVersionKeysFromMap(digestResult.keyDigest()) + " ";
 		}
 		return tmp;
 	}
 
-	public static String getVersionKeysFromDigest(NavigableMap<Number640, Collection<Number160>> digestMap) {
-		String tmp = "| ";
-		for (Number640 key : digestMap.keySet()) {
-			tmp += key.versionKey().timestamp() + " | ";
+	public static String getVersionKeysFromMap(NavigableMap<Number640, Collection<Number160>> dataMap) {
+		String tmp = "";
+		for (Number640 key : dataMap.keySet()) {
+			tmp += key.versionKey() + " ";
+		}
+		return tmp;
+	}
+
+	public static String getVersionKeysFromMap2(NavigableMap<Number640, Set<Number160>> versionTree) {
+		String tmp = "";
+		for (Number640 key : versionTree.keySet()) {
+			tmp += key.versionKey() + " " + versionTree.get(key).toString() + " ";
 		}
 		return tmp;
 	}
