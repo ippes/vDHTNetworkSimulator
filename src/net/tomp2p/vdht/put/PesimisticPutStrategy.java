@@ -38,6 +38,11 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
+	private int putCounter = 0;
+	private int versionForkAfterPut = 0;
+	private int versionDelay = 0;
+	private int versionForkAfterGetMerge = 0;
+
 	public PesimisticPutStrategy(String id, Number480 key) throws IOException {
 		super(id, key);
 		this.putTTLInSeconds = Configuration.getPutTTLInSeconds();
@@ -54,46 +59,59 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			Result result = getAndUpdate(peer);
 
 			// set prepare flag
-			Data updatedData = result.data;
+			Data updatedData = result.getData();
 			updatedData.prepareFlag();
 			// set time to live (prepare)
 			updatedData.ttlSeconds(putPrepareTTLInSeconds);
 
+			logger.debug("Putting updated version.");
+
 			// put updated version into network
 			FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), updatedData)
-					.domainKey(key.domainKey()).versionKey(result.versionKey).start();
+					.domainKey(key.domainKey()).versionKey(result.getVersionKey()).start();
 			futurePut.awaitUninterruptibly();
 
-			logger.debug("Put. version= '{}'", result.versionKey);
+			logger.debug("Put. version = '{}'", result.getVersionKey());
 
 			// check for any version forks
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
+				logger.debug("No version forks detected.");
+
 				// confirm put
 				FuturePut futurePutConfirm = peer.put(key.locationKey()).domainKey(key.domainKey())
 						.data(key.contentKey(), new Data().ttlSeconds(putTTLInSeconds))
-						.versionKey(result.versionKey).putConfirm().start();
+						.versionKey(result.getVersionKey()).putConfirm().start();
 				futurePutConfirm.awaitUninterruptibly();
 
 				// store version key
-				if (result.versionKey.compareTo(memorizedVersionKey) < 0) {
-					memorizedVersionKey = result.versionKey;
+				if (result.getVersionKey().compareTo(memorizedVersionKey) < 0) {
+					memorizedVersionKey = result.getVersionKey();
 				}
 
-				logger.trace("No version forks detected. Put confirmed. key = '{}' id = '{}'", key, id);
+				putCounter++;
+
+				logger.debug("Put confirmed.");
 				break;
 			} else {
+				logger.warn("Version fork after put detected. Rejecting put.");
+
 				// reject put
 				FuturePut futurePutConfirm = peer.put(key.locationKey()).domainKey(key.domainKey())
-						.data(key.contentKey(), new Data()).versionKey(result.versionKey).putReject().start();
+						.data(key.contentKey(), new Data()).versionKey(result.getVersionKey()).putReject()
+						.start();
 				futurePutConfirm.awaitUninterruptibly();
 
-				logger.warn("Version fork after put detected. Retry put.");
+				versionForkAfterPut++;
+
+				logger.debug("Retry put.");
 			}
 		}
 	}
 
 	private Result getAndUpdate(PeerDHT peer) throws IOException, ClassNotFoundException {
 		while (true) {
+			logger.debug("Getting latest version.");
+
 			// fetch latest versions from the network, request also digest
 			FutureGet futureGet = peer.get(key.locationKey()).domainKey(key.domainKey())
 					.contentKey(key.contentKey()).getLatest().withDigest().start();
@@ -113,15 +131,17 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			if (Utils.hasVersionDelay(latestVersions, versionTree) || isDelayed(versionTree)) {
 				logger.warn("Detected a version delay. versions = '{}'",
 						Utils.getVersionKeysFromMap(latestVersions));
-				waitAMoment();
+				versionDelay++;
+				Utils.waitAMoment();
 				continue;
 			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
 				logger.warn("Got a version fork. Merging. versions = '{}'  latestVersions = '{}'",
 						Utils.getVersionKeysFromPeers(rawData), Utils.getVersionKeysFromMap(latestVersions));
+				versionForkAfterGetMerge++;
 				return updateMerge(latestVersions);
 			} else {
 				if (latestVersions.isEmpty()) {
-					logger.debug("Received an empty data map. key = '{}' id = '{}'", key, id);
+					logger.debug("Received an empty data map.");
 					// reset value
 					Data data = new Data(id).addBasedOn(Number160.ZERO);
 					// generate a new version key
@@ -193,6 +213,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	 * @throws IOException
 	 */
 	private Result updateData(Entry<Number640, Data> entry) throws ClassNotFoundException, IOException {
+		logger.debug("Updating regurarly");
 		// update data
 		String value = ((String) entry.getValue().object()) + id;
 		// create a new updated wrapper
@@ -225,27 +246,12 @@ public final class PesimisticPutStrategy extends PutStrategy {
 		return false;
 	}
 
-	private void waitAMoment() {
-		while (true) {
-			try {
-				Thread.sleep(500);
-				break;
-			} catch (InterruptedException e) {
-				logger.error("Got interupted.", e);
-			}
-		}
-	}
-
-	private class Result {
-
-		public final Data data;
-		public final Number160 versionKey;
-
-		public Result(Data data, Number160 versionKey) {
-			this.data = data;
-			this.versionKey = versionKey;
-		}
-
+	@Override
+	public void printResults() {
+		logger.debug("# puts = '{}'", putCounter);
+		logger.debug("version delays = '{}'", versionDelay);
+		logger.debug("version forks after put = '{}'", versionForkAfterPut);
+		logger.debug("version forks after get and merge = '{}'", versionForkAfterGetMerge);
 	}
 
 }

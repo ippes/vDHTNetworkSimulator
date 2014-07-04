@@ -20,4 +20,6 @@ public abstract class PutStrategy {
 
 	public abstract void getUpdateAndPut(PeerDHT peer) throws Exception;
 
+	public abstract void printResults();
+
 }

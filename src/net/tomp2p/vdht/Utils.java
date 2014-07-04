@@ -165,6 +165,17 @@ public class Utils {
 		return latestVersions;
 	}
 
+	public static void waitAMoment() {
+		while (true) {
+			try {
+				Thread.sleep(500);
+				break;
+			} catch (InterruptedException e) {
+				logger.error("Got interupted.", e);
+			}
+		}
+	}
+
 	public static String getVersionKeysFromPeers(Map<PeerAddress, Map<Number640, Data>> peerResult) {
 		String result = "";
 		for (PeerAddress peerAddress : peerResult.keySet()) {

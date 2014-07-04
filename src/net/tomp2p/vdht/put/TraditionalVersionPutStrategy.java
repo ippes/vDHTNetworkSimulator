@@ -65,4 +65,10 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 		logger.debug("Put. value = '{}' key ='{}' id = '{}'", value, key, id);
 	}
 
+	@Override
+	public void printResults() {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

@@ -87,10 +87,7 @@ public abstract class Executor implements Runnable {
 			}
 
 			// check if a rescheduling is needed
-			if (counterExecutes < 0) {
-				shutdown = true;
-				return;
-			} else if (counterExecutes == numberExecutes) {
+			if (counterExecutes == numberExecutes) {
 				shutdown = true;
 				return;
 			} else {

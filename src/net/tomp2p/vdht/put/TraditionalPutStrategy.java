@@ -15,6 +15,8 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 	public static final String PUT_STRATEGY_NAME = "traditional";
 
+	private int putCounter = 0;
+
 	public TraditionalPutStrategy(String id, Number480 key) {
 		super(id, key);
 	}
@@ -41,7 +43,15 @@ public final class TraditionalPutStrategy extends PutStrategy {
 				.domainKey(key.domainKey()).start();
 		futurePut.awaitUninterruptibly();
 
+		putCounter++;
+
 		logger.debug("Executed put. value = '{}' key ='{}' id = '{}'", value, key, id);
+	}
+
+	@Override
+	public void printResults() {
+
+		logger.debug("# puts = '{}'", putCounter);
 	}
 
 }

@@ -190,6 +190,12 @@ public class LocalNetworkSimulator {
 		logger.debug("Shutdown of network finished.");
 	}
 
+	public void printResults() {
+		for (int i = 0; i < putCoordinators.length; i++) {
+			putCoordinators[i].printResults();
+		}
+	}
+
 	/**
 	 * Gets repeatedly executed. Adds and removes peers according given churn
 	 * strategy and join/leave ratio.
@@ -301,6 +307,12 @@ public class LocalNetworkSimulator {
 				PutExecutor putExecutor = new PutExecutor(id, key, scheduler);
 				putExecutor.start();
 				putExecutors[i] = putExecutor;
+			}
+		}
+
+		public void printResults() {
+			for (int i = 0; i < putExecutors.length; i++) {
+				putExecutors[i].putStrategy.printResults();
 			}
 		}
 

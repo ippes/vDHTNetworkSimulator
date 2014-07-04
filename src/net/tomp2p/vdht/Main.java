@@ -33,13 +33,16 @@ public class Main {
 				logger.info("Running simulation for {} milliseconds.", runtimeInMilliseconds);
 				Thread.sleep(runtimeInMilliseconds);
 			} else {
-				while (network.isRunning()){
+				while (network.isRunning()) {
 					Thread.sleep(500);
 				}
 			}
 
 			logger.info("Stopping network simulator.");
 			network.shutDown();
+
+			logger.info("Printing results.");
+			network.printResults();
 		} catch (Exception e) {
 			logger.error("Caught an unexpected exception.", e);
 			System.exit(0);
