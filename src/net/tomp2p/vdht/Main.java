@@ -38,8 +38,15 @@ public class Main {
 				}
 			}
 
-			logger.info("Stopping network simulator.");
-			network.shutDown();
+			logger.info("Stopping simulator.");
+			network.shutDownChurn();
+			network.shutDownPutCoordinators();
+
+			logger.info("Loading putting results.");
+			network.loadResults();
+
+			logger.info("Shutdowning network.");
+			network.shutDownNetwork();
 
 			logger.info("Printing results.");
 			network.printResults();

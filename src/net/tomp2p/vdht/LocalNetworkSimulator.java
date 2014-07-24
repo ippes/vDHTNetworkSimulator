@@ -7,8 +7,8 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import net.tomp2p.dht.PeerBuilderDHT;
 import net.tomp2p.dht.PeerDHT;
-import net.tomp2p.dht.StorageLayer;
 import net.tomp2p.dht.StorageMemory;
 import net.tomp2p.futures.FutureBootstrap;
 import net.tomp2p.p2p.PeerBuilder;
@@ -90,8 +90,8 @@ public class LocalNetworkSimulator {
 
 			if (i == 0) {
 				// create master peer
-				masterPeer = new PeerDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap).start(),
-						new StorageLayer(new StorageMemory(ttlCheckIntervalInMilliseconds)));
+				masterPeer = new PeerBuilderDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap).start())
+						.storage(new StorageMemory(ttlCheckIntervalInMilliseconds)).start();
 
 				// enable replication if required
 				enableReplication(masterPeer);
@@ -99,9 +99,9 @@ public class LocalNetworkSimulator {
 				logger.trace("Master Peer added to network. peer id = '{}'", masterPeer.peerID());
 			} else {
 				// create peer
-				PeerDHT peer = new PeerDHT(new PeerBuilder(peerId).peerMap(peerMap)
-						.masterPeer(masterPeer.peer()).start(), new StorageLayer(new StorageMemory(
-						ttlCheckIntervalInMilliseconds)));
+				PeerDHT peer = new PeerBuilderDHT(new PeerBuilder(peerId).peerMap(peerMap)
+						.masterPeer(masterPeer.peer()).start()).storage(
+						new StorageMemory(ttlCheckIntervalInMilliseconds)).start();
 
 				// enable replication if required
 				enableReplication(peer);
@@ -163,19 +163,23 @@ public class LocalNetworkSimulator {
 		return !shutdown;
 	}
 
-	public void shutDown() {
+	public void shutDownChurn() {
+		if (churnExecutor != null) {
+			churnExecutor.shutdown();
+		}
+		logger.debug("Stopped churn.");
+	}
+
+	public void shutDownPutCoordinators() {
 		if (putCoordinators != null) {
 			for (int i = 0; i < putCoordinators.length; i++) {
 				putCoordinators[i].shutdown();
 			}
 		}
 		logger.debug("Stopped put coordinators.");
+	}
 
-		if (churnExecutor != null) {
-			churnExecutor.shutdown();
-		}
-		logger.debug("Stopped churn.");
-
+	public void shutDownNetwork() {
 		for (PeerDHT peer : peers) {
 			logger.trace("Shutdown peer. peer id = '{}'", peer.peerID());
 			peer.shutdown().awaitUninterruptibly();
@@ -187,7 +191,12 @@ public class LocalNetworkSimulator {
 			masterPeer.shutdown().awaitUninterruptibly();
 		}
 		logger.debug("Shutdown of master peer finished.");
-		logger.debug("Shutdown of network finished.");
+	}
+
+	public void loadResults() {
+		for (int i = 0; i < putCoordinators.length; i++) {
+			putCoordinators[i].loadResultingString();
+		}
 	}
 
 	public void printResults() {
@@ -253,9 +262,13 @@ public class LocalNetworkSimulator {
 			for (int i = 0; i < numberOfPeerToJoin; i++) {
 				try {
 					// create new peer to join
-					PeerDHT newPeer = new PeerDHT(new PeerBuilder(new Number160(random)).masterPeer(
-							masterPeer.peer()).start(), new StorageLayer(new StorageMemory(
-							ttlCheckIntervalInMilliseconds)));
+					Number160 peerId = new Number160(random);
+					PeerMapConfiguration peerMapConfiguration = new PeerMapConfiguration(peerId);
+					peerMapConfiguration.peerVerification(false);
+					PeerMap peerMap = new PeerMap(peerMapConfiguration);
+					PeerDHT newPeer = new PeerBuilderDHT(new PeerBuilder(peerId).peerMap(peerMap)
+							.masterPeer(masterPeer.peer()).start()).storage(
+							new StorageMemory(ttlCheckIntervalInMilliseconds)).start();
 
 					// enable replication if required
 					enableReplication(newPeer);
@@ -307,6 +320,21 @@ public class LocalNetworkSimulator {
 				PutExecutor putExecutor = new PutExecutor(id, key, scheduler);
 				putExecutor.start();
 				putExecutors[i] = putExecutor;
+			}
+		}
+
+		public void loadResultingString() {
+			KeyLock<Number160>.RefCounterLock lock = null;
+			PeerDHT peer = null;
+			while (lock == null) {
+				peer = peers.get(random.nextInt(peers.size()));
+				lock = keyLock.tryLock(peer.peerID());
+			}
+			try {
+				// TODO load resulting sting
+				// peer.get(key.locationKey()).contentKey(key.contentKey()).domainKey(key.domainKey()).descending()
+			} finally {
+				keyLock.unlock(lock);
 			}
 		}
 

@@ -119,8 +119,9 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 			// get raw result from all contacted peers
 			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet.rawData();
-			logger.debug("Got. versions = '{}'", Utils.getVersionKeysFromPeers(rawData));
 			Map<PeerAddress, DigestResult> rawDigest = futureGet.rawDigest();
+			logger.debug("Got. versions = '{}' digest = '{}'", Utils.getVersionKeysFromPeers(rawData),
+					Utils.getVersionKeysFromDigest(rawDigest));
 
 			// build the version tree from raw digest result;
 			NavigableMap<Number640, Set<Number160>> versionTree = Utils.buildVersionTree(rawDigest);
