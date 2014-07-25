@@ -7,6 +7,7 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.PeerBuilderDHT;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.dht.StorageMemory;
@@ -312,6 +313,8 @@ public class LocalNetworkSimulator {
 		private final ScheduledExecutorService scheduler = Executors
 				.newScheduledThreadPool(putConcurrencyFactor);
 
+		private String resultString;
+
 		public PutCoordinator() throws IOException {
 			this.key = new Number480(random);
 			this.putExecutors = new PutExecutor[putConcurrencyFactor];
@@ -331,15 +334,30 @@ public class LocalNetworkSimulator {
 				lock = keyLock.tryLock(peer.peerID());
 			}
 			try {
-				// TODO load resulting sting
-				// peer.get(key.locationKey()).contentKey(key.contentKey()).domainKey(key.domainKey()).descending()
+				// load latest string
+				FutureGet futureGet = peer.get(key.locationKey()).contentKey(key.contentKey())
+						.domainKey(key.domainKey()).getLatest().start();
+				futureGet.awaitUninterruptibly();
+
+				resultString = (String) futureGet.data().object();
+			} catch (Exception e) {
+				logger.error("Couldn't get result.", e);
 			} finally {
 				keyLock.unlock(lock);
 			}
 		}
 
 		public void printResults() {
+			logger.debug("latest version = '{}'", resultString);
 			for (int i = 0; i < putExecutors.length; i++) {
+				int count = 0;
+				for (int j = 0; j < resultString.length(); j++) {
+					if (resultString.charAt(j) == putExecutors[i].getId().charAt(0)) {
+						count++;
+					}
+				}
+				logger.debug("id = '{}', {} of {}", putExecutors[i].getId(), count,
+						putExecutors[i].putStrategy.getPutCounter());
 				putExecutors[i].putStrategy.printResults();
 			}
 		}
@@ -358,11 +376,13 @@ public class LocalNetworkSimulator {
 
 		private final Number480 key;
 		private final PutStrategy putStrategy;
+		private final String id;
 
 		public PutExecutor(String id, Number480 key, ScheduledExecutorService scheduler) throws IOException {
 			super(scheduler, Configuration.getPutDelayMinInMilliseconds(), Configuration
 					.getPutDelayMaxInMilliseconds(), Configuration.getNumPuts());
 			this.key = key;
+			this.id = id;
 
 			String putApproach = Configuration.getPutStrategyName();
 			switch (putApproach) {
@@ -402,6 +422,9 @@ public class LocalNetworkSimulator {
 			logger.trace("Put. key = '{}'", key);
 		}
 
+		public String getId() {
+			return id;
+		}
 	}
 
 }
