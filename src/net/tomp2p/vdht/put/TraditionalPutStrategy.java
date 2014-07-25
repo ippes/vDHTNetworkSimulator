@@ -9,13 +9,17 @@ import net.tomp2p.storage.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A putting strategy which simply overwrites versions with the newer ones. The strategy doesn't use any
+ * version keys.
+ * 
+ * @author Seppi
+ */
 public final class TraditionalPutStrategy extends PutStrategy {
 
 	private final Logger logger = LoggerFactory.getLogger(TraditionalPutStrategy.class);
 
 	public static final String PUT_STRATEGY_NAME = "traditional";
-
-	private int putCounter = 0;
 
 	public TraditionalPutStrategy(String id, Number480 key) {
 		super(id, key);
@@ -30,7 +34,7 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 		// get result and update it (append id)
 		String value;
-		Data result = futureGet.data();		
+		Data result = futureGet.data();
 		if (result == null) {
 			// reset value
 			value = id;
@@ -50,8 +54,7 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 	@Override
 	public void printResults() {
-
-		logger.debug("# puts = '{}'", putCounter);
+		// no other statistics to print
 	}
 
 }

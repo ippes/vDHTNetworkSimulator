@@ -32,7 +32,6 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
-	private int putCounter = 0;
 	private int versionForkAfterPut = 0;
 	private int versionDelay = 0;
 	private int versionForkAfterGetWait = 0;

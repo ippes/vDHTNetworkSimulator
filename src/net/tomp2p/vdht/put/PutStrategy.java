@@ -13,6 +13,8 @@ public abstract class PutStrategy {
 	protected final String id;
 	protected final Number480 key;
 
+	protected int putCounter;
+
 	public PutStrategy(String id, Number480 key) {
 		this.id = id;
 		this.key = key;
@@ -21,5 +23,9 @@ public abstract class PutStrategy {
 	public abstract void getUpdateAndPut(PeerDHT peer) throws Exception;
 
 	public abstract void printResults();
+
+	public int getPutCounter() {
+		return putCounter;
+	}
 
 }

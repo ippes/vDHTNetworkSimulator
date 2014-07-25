@@ -38,7 +38,6 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
-	private int putCounter = 0;
 	private int versionForkAfterPut = 0;
 	private int versionDelay = 0;
 	private int versionForkAfterGetMerge = 0;
@@ -90,7 +89,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				putCounter++;
 
-				logger.debug("Put confirmed.");
+				logger.debug("Put confirmed. put counter = '{}'", putCounter);
+
 				break;
 			} else {
 				logger.warn("Version fork after put detected. Rejecting put.");
@@ -249,10 +249,9 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 	@Override
 	public void printResults() {
-		logger.debug("# puts = '{}'", putCounter);
-		logger.debug("version delays = '{}'", versionDelay);
-		logger.debug("version forks after put = '{}'", versionForkAfterPut);
-		logger.debug("version forks after get and merge = '{}'", versionForkAfterGetMerge);
+		logger.debug("id = '{}', version delays = '{}'", id, versionDelay);
+		logger.debug("id = '{}', version forks after put = '{}'", id, versionForkAfterPut);
+		logger.debug("id = '{}', version forks after get and merge = '{}'", id, versionForkAfterGetMerge);
 	}
 
 }
