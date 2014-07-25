@@ -66,6 +66,11 @@ public abstract class Executor implements Runnable {
 			scheduledFuture.cancel(true);
 		}
 		scheduler.shutdownNow();
+		try {
+			scheduler.awaitTermination(10000, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
+			logger.error("Couldn't wait for termination.", e);
+		}
 	}
 
 	public abstract void execute() throws Exception;
