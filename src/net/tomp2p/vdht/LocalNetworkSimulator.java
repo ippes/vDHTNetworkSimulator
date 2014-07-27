@@ -194,10 +194,15 @@ public class LocalNetworkSimulator {
 		logger.debug("Shutdown of master peer finished.");
 	}
 
-	public void loadResults() {
+	public void loadAndStoreResults() {
+		int versionWrites = 0;
+		int presentVersions = 0;
 		for (int i = 0; i < putCoordinators.length; i++) {
-			putCoordinators[i].loadResultingString();
+			versionWrites += putCoordinators[i].countWriteExecutions();
+			presentVersions += putCoordinators[i].loadLatestVersion().length();
 		}
+		// store settings and results in a file
+		Outcome.writeResult(presentVersions, versionWrites);
 	}
 
 	public void printResults() {
@@ -313,7 +318,7 @@ public class LocalNetworkSimulator {
 		private final ScheduledExecutorService scheduler = Executors
 				.newScheduledThreadPool(putConcurrencyFactor);
 
-		private String resultString;
+		private String latestVersion;
 
 		public PutCoordinator() throws IOException {
 			this.key = new Number480(random);
@@ -326,7 +331,7 @@ public class LocalNetworkSimulator {
 			}
 		}
 
-		public void loadResultingString() {
+		public String loadLatestVersion() {
 			KeyLock<Number160>.RefCounterLock lock = null;
 			PeerDHT peer = null;
 			while (lock == null) {
@@ -339,25 +344,35 @@ public class LocalNetworkSimulator {
 						.domainKey(key.domainKey()).getLatest().start();
 				futureGet.awaitUninterruptibly();
 
-				resultString = (String) futureGet.data().object();
+				latestVersion = (String) futureGet.data().object();
 			} catch (Exception e) {
 				logger.error("Couldn't get result.", e);
 			} finally {
 				keyLock.unlock(lock);
 			}
+			return latestVersion;
+		}
+
+		public int countWriteExecutions() {
+			int count = 0;
+			for (int i = 0; i < putExecutors.length; i++) {
+				count += putExecutors[i].putStrategy.getPutCounter();
+			}
+			return count;
 		}
 
 		public void printResults() {
-			logger.debug("latest version = '{}'", resultString);
+			logger.debug("latest version = '{}'", latestVersion);
 			for (int i = 0; i < putExecutors.length; i++) {
 				int count = 0;
-				for (int j = 0; j < resultString.length(); j++) {
-					if (resultString.charAt(j) == putExecutors[i].getId().charAt(0)) {
+				for (int j = 0; j < latestVersion.length(); j++) {
+					if (latestVersion.charAt(j) == putExecutors[i].getId().charAt(0)) {
 						count++;
 					}
 				}
-				logger.debug("id = '{}', {} of {}", putExecutors[i].getId(), count,
-						putExecutors[i].putStrategy.getPutCounter());
+				// print results
+				logger.debug("version writes = '{}' present versions = '{}' id = '{}' key = '{}'",
+						putExecutors[i].putStrategy.getPutCounter(), count, putExecutors[i].id, key);
 				putExecutors[i].putStrategy.printResults();
 			}
 		}

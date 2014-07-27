@@ -233,11 +233,10 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	@Override
 	public void printResults() {
-		logger.debug("# puts = '{}'", putCounter);
 		logger.debug("version delays = '{}'", versionDelay);
 		logger.debug("version forks after put = '{}'", versionForkAfterPut);
-		logger.debug("version forks after get and wait = '{}'", versionForkAfterGetWait);
 		logger.debug("version forks after get and merge = '{}'", versionForkAfterGetMerge);
+		logger.debug("version forks after get and wait = '{}'", versionForkAfterGetWait);
 	}
 
 }

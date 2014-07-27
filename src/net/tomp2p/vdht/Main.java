@@ -42,8 +42,8 @@ public class Main {
 			network.shutDownChurn();
 			network.shutDownPutCoordinators();
 
-			logger.info("Loading putting results.");
-			network.loadResults();
+			logger.info("Loading and storing results.");
+			network.loadAndStoreResults();
 
 			logger.info("Shutdowning network.");
 			network.shutDownNetwork();
