@@ -1,12 +1,8 @@
 package net.tomp2p.vdht.churn;
 
-import java.io.IOException;
 import java.util.Random;
 
 import net.tomp2p.vdht.Configuration;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A churn strategy where the amount of joining and leaving peers varies.
@@ -16,32 +12,26 @@ import org.slf4j.LoggerFactory;
  */
 public final class WildChurnStrategy implements ChurnStrategy {
 
-	private final Logger logger = LoggerFactory.getLogger(WildChurnStrategy.class);
-
 	public static final String CHURN_STRATEGY_NAME = "wild";
 
 	private final Random random = new Random();
 
-	private final int numPeersMax;
-	private final int numPeersMin;
+	private final Configuration configuration;
 
-	public WildChurnStrategy() throws IOException {
-		numPeersMax = Configuration.getNumPeersMax();
-		logger.trace("max # peers = '{}", numPeersMax);
-		numPeersMin = Configuration.getNumPeersMin();
-		logger.trace("min # peers = '{}", numPeersMin);
+	public WildChurnStrategy(Configuration configuration) {
+		this.configuration = configuration;
 	}
 
 	@Override
 	public int getNumJoiningPeers(int currentNumberOfPeers) {
-		int maxJoiningPeers = numPeersMax - (currentNumberOfPeers + 1);
+		int maxJoiningPeers = configuration.getNumPeersMax() - (currentNumberOfPeers + 1);
 		return maxJoiningPeers > 0 ? random.nextInt(maxJoiningPeers + 1) : 0;
 	}
 
 	@Override
 	public int getNumLeavingPeers(int currentNumberOfPeers) {
-		int maxLeavingPeers = currentNumberOfPeers - numPeersMin;
-		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers + 1) + 1: 0;
+		int maxLeavingPeers = currentNumberOfPeers - configuration.getNumPeersMin();
+		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers + 1) + 1 : 0;
 	}
 
 }
