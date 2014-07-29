@@ -2,10 +2,10 @@ package net.tomp2p.vdht.put;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.Map.Entry;
 
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FuturePut;
@@ -28,7 +28,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	public static final String PUT_STRATEGY_NAME = "optimistic";
 
-	private final int putTTLInSeconds;
+	private final Configuration configuration;
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
@@ -37,10 +37,9 @@ public final class OptimisticPutStrategy extends PutStrategy {
 	private int versionForkAfterGetWait = 0;
 	private int versionForkAfterGetMerge = 0;
 
-	public OptimisticPutStrategy(String id, Number480 key) throws IOException {
+	public OptimisticPutStrategy(String id, Number480 key, Configuration configuration) {
 		super(id, key);
-		this.putTTLInSeconds = Configuration.getPutTTLInSeconds();
-		logger.trace("put ttl in seconds = '{}'", putTTLInSeconds);
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -52,7 +51,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 			// set time to live
 			Data updatedData = result.getData();
-			updatedData.ttlSeconds(putTTLInSeconds);
+			updatedData.ttlSeconds(configuration.getPutTTLInSeconds());
 
 			// put updated version into network
 			FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), updatedData)

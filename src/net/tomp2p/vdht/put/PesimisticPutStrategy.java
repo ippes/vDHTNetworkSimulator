@@ -33,8 +33,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 	public static final String PUT_STRATEGY_NAME = "pessimistic";
 
-	private final int putTTLInSeconds;
-	private final int putPrepareTTLInSeconds;
+	private final Configuration configuration;
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
@@ -42,12 +41,9 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	private int versionDelay = 0;
 	private int versionForkAfterGetMerge = 0;
 
-	public PesimisticPutStrategy(String id, Number480 key) throws IOException {
+	public PesimisticPutStrategy(String id, Number480 key, Configuration configuration) {
 		super(id, key);
-		this.putTTLInSeconds = Configuration.getPutTTLInSeconds();
-		logger.trace("put ttl in seconds = '{}'", putTTLInSeconds);
-		this.putPrepareTTLInSeconds = Configuration.getPutPrepareTTLInSeconds();
-		logger.trace("put prepare ttl in seconds = '{}'");
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -61,7 +57,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			Data updatedData = result.getData();
 			updatedData.prepareFlag();
 			// set time to live (prepare)
-			updatedData.ttlSeconds(putPrepareTTLInSeconds);
+			updatedData.ttlSeconds(configuration.getPutPrepareTTLInSeconds());
 
 			logger.debug("Putting updated version.");
 
@@ -78,7 +74,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				// confirm put
 				FuturePut futurePutConfirm = peer.put(key.locationKey()).domainKey(key.domainKey())
-						.data(key.contentKey(), new Data().ttlSeconds(putTTLInSeconds))
+						.data(key.contentKey(), new Data().ttlSeconds(configuration.getPutTTLInSeconds()))
 						.versionKey(result.getVersionKey()).putConfirm().start();
 				futurePutConfirm.awaitUninterruptibly();
 

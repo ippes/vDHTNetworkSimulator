@@ -1,6 +1,5 @@
 package net.tomp2p.vdht.put;
 
-import java.io.IOException;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
@@ -30,14 +29,13 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 
 	public static final String PUT_STRATEGY_NAME = "traditionalVersion";
 
-	private final int putTTLInSeconds;
+	private final Configuration configuration;
 
 	private Number160 basedOnKey = Number160.ZERO;
 
-	public TraditionalVersionPutStrategy(String id, Number480 key) throws IOException {
+	public TraditionalVersionPutStrategy(String id, Number480 key, Configuration configuration) {
 		super(id, key);
-		this.putTTLInSeconds = Configuration.getPutTTLInSeconds();
-		logger.trace("put ttl in seconds = '{}'", putTTLInSeconds);
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -67,7 +65,7 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 		// set based on key
 		data.basedOnSet().add(basedOnKey);
 		// set ttl
-		data.ttlSeconds(putTTLInSeconds);
+		data.ttlSeconds(configuration.getPutTTLInSeconds());
 		// generate a new version key
 		Number160 versionKey = Utils.generateVersionKey(basedOnKey, value);
 
