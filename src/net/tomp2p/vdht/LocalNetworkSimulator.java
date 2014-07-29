@@ -50,37 +50,15 @@ public class LocalNetworkSimulator {
 	private final Random random = new Random();
 	private final KeyLock<Number160> keyLock = new KeyLock<Number160>();
 
-	private final int numPeersMax;
-	private final int numPeersMin;
-	private final int port;
-	private final int numKeys;
-	private final int putConcurrencyFactor;
-	private final int ttlCheckIntervalInMilliseconds;
-	private final int replicationFactor;
-	private final int replicationIntervalInMilliseconds;
+	private final Configuration configuration;
 
-	public LocalNetworkSimulator() throws IOException {
-		this.numPeersMax = Configuration.getNumPeersMax();
-		logger.trace("max # peers = '{}", numPeersMax);
-		this.numPeersMin = Configuration.getNumPeersMin();
-		logger.trace("min # peers = '{}", numPeersMin);
-		this.port = Configuration.getPort();
-		logger.trace("port = '{}'", port);
-		this.numKeys = Configuration.getNumKeys();
-		logger.trace("# keys = '{}'", numKeys);
-		this.putConcurrencyFactor = Configuration.getPutConcurrencyFactor();
-		logger.trace("put concurrency factor = '{}'", putConcurrencyFactor);
-		this.ttlCheckIntervalInMilliseconds = Configuration.getTTLCheckIntervalInMilliseconds();
-		logger.trace("ttl check interval in milliseconds = '{}'", ttlCheckIntervalInMilliseconds);
-		this.replicationFactor = Configuration.getReplicationFactor();
-		logger.trace("replication factor = '{}'", replicationFactor);
-		this.replicationIntervalInMilliseconds = Configuration.getReplicationIntervalInMilliseconds();
-		logger.trace("replication interval in milliseconds = '{}'", replicationIntervalInMilliseconds);
+	public LocalNetworkSimulator(Configuration configuration) {
+		this.configuration = configuration;
 	}
 
-	public void createNetwork() throws Exception {
+	public void createNetwork() throws IOException {
 		// initially create peers within given boundaries
-		int numPeers = (numPeersMax + numPeersMin) / 2;
+		int numPeers = (configuration.getNumPeersMax() + configuration.getNumPeersMin()) / 2;
 		for (int i = 0; i < numPeers; i++) {
 			// create a new peer id
 			Number160 peerId = new Number160(random);
@@ -91,8 +69,9 @@ public class LocalNetworkSimulator {
 
 			if (i == 0) {
 				// create master peer
-				masterPeer = new PeerBuilderDHT(new PeerBuilder(peerId).ports(port).peerMap(peerMap).start())
-						.storage(new StorageMemory(ttlCheckIntervalInMilliseconds)).start();
+				masterPeer = new PeerBuilderDHT(new PeerBuilder(peerId).ports(configuration.getPort())
+						.peerMap(peerMap).start()).storage(
+						new StorageMemory(configuration.getTTLCheckIntervalInMilliseconds())).start();
 
 				// enable replication if required
 				enableReplication(masterPeer);
@@ -102,7 +81,7 @@ public class LocalNetworkSimulator {
 				// create peer
 				PeerDHT peer = new PeerBuilderDHT(new PeerBuilder(peerId).peerMap(peerMap)
 						.masterPeer(masterPeer.peer()).start()).storage(
-						new StorageMemory(ttlCheckIntervalInMilliseconds)).start();
+						new StorageMemory(configuration.getTTLCheckIntervalInMilliseconds())).start();
 
 				// enable replication if required
 				enableReplication(peer);
@@ -118,26 +97,28 @@ public class LocalNetworkSimulator {
 		logger.debug("Network created. numPeers = '{}'", numPeers);
 	}
 
-	private void enableReplication(PeerDHT peer) throws IOException {
-		switch (Configuration.getReplication()) {
+	private void enableReplication(PeerDHT peer) {
+		switch (configuration.getReplication()) {
 			case "off":
 				// don't enable any replication
 				break;
 			case "root":
 				// set replication interval, start replication with 0-root approach
-				new IndirectReplication(peer).intervalMillis(replicationIntervalInMilliseconds)
-						.replicationFactor(replicationFactor).start();
+				new IndirectReplication(peer)
+						.intervalMillis(configuration.getReplicationIntervalInMilliseconds())
+						.replicationFactor(configuration.getReplicationFactor()).start();
 				break;
 			case "nRoot":
 			default:
 				// set replication interval, start replication with n-root approach
-				new IndirectReplication(peer).intervalMillis(replicationIntervalInMilliseconds).nRoot()
-						.replicationFactor(replicationFactor).start();
+				new IndirectReplication(peer)
+						.intervalMillis(configuration.getReplicationIntervalInMilliseconds()).nRoot()
+						.replicationFactor(configuration.getReplicationFactor()).start();
 		}
 	}
 
-	public void startChurn() throws IOException {
-		if (Configuration.getChurnStrategyName().equals("off")) {
+	public void startChurn() {
+		if (configuration.getChurnStrategyName().equals("off")) {
 			logger.debug("No churn enabled.");
 		} else {
 			churnExecutor = new ChurnExecutor();
@@ -146,9 +127,9 @@ public class LocalNetworkSimulator {
 		}
 	}
 
-	public void startPutting() throws IOException {
-		putCoordinators = new PutCoordinator[numKeys];
-		for (int i = 0; i < numKeys; i++) {
+	public void startPutting() {
+		putCoordinators = new PutCoordinator[configuration.getNumKeys()];
+		for (int i = 0; i < putCoordinators.length; i++) {
 			putCoordinators[i] = new PutCoordinator();
 		}
 		logger.debug("Putting started.");
@@ -202,7 +183,7 @@ public class LocalNetworkSimulator {
 			presentVersions += putCoordinators[i].loadLatestVersion().length();
 		}
 		// store settings and results in a file
-		Outcome.writeResult(presentVersions, versionWrites);
+		Outcome.writeResult(configuration, presentVersions, versionWrites);
 	}
 
 	public void printResults() {
@@ -224,27 +205,27 @@ public class LocalNetworkSimulator {
 		private final double churnJoinLeaveRate;
 		private final ChurnStrategy churnStrategy;
 
-		public ChurnExecutor() throws IOException {
-			super(Executors.newScheduledThreadPool(1), Configuration.getChurnRateMinDelayInMilliseconds(),
-					Configuration.getChurnRateMaxDelayInMilliseconds(), -1);
+		public ChurnExecutor() {
+			super(Executors.newScheduledThreadPool(1), configuration.getChurnRateMinDelayInMilliseconds(),
+					configuration.getChurnRateMaxDelayInMilliseconds(), -1);
 
-			this.churnJoinLeaveRate = Configuration.getChurnJoinLeaveRate();
+			this.churnJoinLeaveRate = configuration.getChurnJoinLeaveRate();
 			logger.trace("churn join/leave rate = '{}'", churnJoinLeaveRate);
 
-			String churnStrategyName = Configuration.getChurnStrategyName();
+			String churnStrategyName = configuration.getChurnStrategyName();
 			logger.trace("churn strategy name = '{}'", churnStrategyName);
 			switch (churnStrategyName) {
 				case StepwiseChurnStrategy.CHURN_STRATEGY_NAME:
-					churnStrategy = new StepwiseChurnStrategy();
+					churnStrategy = new StepwiseChurnStrategy(configuration);
 					break;
 				case StepwiseRandomChurnStrategy.CHURN_STRATEGY_NAME:
-					churnStrategy = new StepwiseRandomChurnStrategy();
+					churnStrategy = new StepwiseRandomChurnStrategy(configuration);
 					break;
 				case WildChurnStrategy.CHURN_STRATEGY_NAME:
-					churnStrategy = new WildChurnStrategy();
+					churnStrategy = new WildChurnStrategy(configuration);
 					break;
 				default:
-					churnStrategy = new StepwiseChurnStrategy();
+					churnStrategy = new StepwiseChurnStrategy(configuration);
 					logger.warn(
 							"An unknown chrun strategy name '{}' was given. Selected '{}' as default churn strategy.",
 							churnStrategyName, StepwiseChurnStrategy.CHURN_STRATEGY_NAME);
@@ -274,7 +255,7 @@ public class LocalNetworkSimulator {
 					PeerMap peerMap = new PeerMap(peerMapConfiguration);
 					PeerDHT newPeer = new PeerBuilderDHT(new PeerBuilder(peerId).peerMap(peerMap)
 							.masterPeer(masterPeer.peer()).start()).storage(
-							new StorageMemory(ttlCheckIntervalInMilliseconds)).start();
+							new StorageMemory(configuration.getTTLCheckIntervalInMilliseconds())).start();
 
 					// enable replication if required
 					enableReplication(newPeer);
@@ -315,15 +296,15 @@ public class LocalNetworkSimulator {
 		private final PutExecutor[] putExecutors;
 		private final Number480 key;
 
-		private final ScheduledExecutorService scheduler = Executors
-				.newScheduledThreadPool(putConcurrencyFactor);
+		private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(configuration
+				.getPutConcurrencyFactor());
 
 		private String latestVersion;
 
-		public PutCoordinator() throws IOException {
+		public PutCoordinator() {
 			this.key = new Number480(random);
-			this.putExecutors = new PutExecutor[putConcurrencyFactor];
-			for (int i = 0; i < putConcurrencyFactor; i++) {
+			this.putExecutors = new PutExecutor[configuration.getPutConcurrencyFactor()];
+			for (int i = 0; i < putExecutors.length; i++) {
 				String id = String.valueOf((char) ('a' + i));
 				PutExecutor putExecutor = new PutExecutor(id, key, scheduler);
 				putExecutor.start();
@@ -393,28 +374,28 @@ public class LocalNetworkSimulator {
 		private final PutStrategy putStrategy;
 		private final String id;
 
-		public PutExecutor(String id, Number480 key, ScheduledExecutorService scheduler) throws IOException {
-			super(scheduler, Configuration.getPutDelayMinInMilliseconds(), Configuration
-					.getPutDelayMaxInMilliseconds(), Configuration.getNumPuts());
+		public PutExecutor(String id, Number480 key, ScheduledExecutorService scheduler) {
+			super(scheduler, configuration.getPutDelayMinInMilliseconds(), configuration
+					.getPutDelayMaxInMilliseconds(), configuration.getNumPuts());
 			this.key = key;
 			this.id = id;
 
-			String putApproach = Configuration.getPutStrategyName();
+			String putApproach = configuration.getPutStrategyName();
 			switch (putApproach) {
 				case TraditionalPutStrategy.PUT_STRATEGY_NAME:
 					putStrategy = new TraditionalPutStrategy(id, key);
 					break;
 				case TraditionalVersionPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new TraditionalVersionPutStrategy(id, key);
+					putStrategy = new TraditionalVersionPutStrategy(id, key, configuration);
 					break;
 				case OptimisticPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new OptimisticPutStrategy(id, key);
+					putStrategy = new OptimisticPutStrategy(id, key, configuration);
 					break;
 				case PesimisticPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new PesimisticPutStrategy(id, key);
+					putStrategy = new PesimisticPutStrategy(id, key, configuration);
 					break;
 				default:
-					putStrategy = new OptimisticPutStrategy(id, key);
+					putStrategy = new OptimisticPutStrategy(id, key, configuration);
 					logger.warn(
 							"An unknown put approach '{}' was given. Selected '{}' as default put approach.",
 							putApproach, OptimisticPutStrategy.PUT_STRATEGY_NAME);

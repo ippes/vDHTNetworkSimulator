@@ -87,7 +87,7 @@ public final class Outcome {
 		}
 	}
 
-	public static void writeResult(int presentVersions, int versionWrites) {
+	public static void writeResult(Configuration configuration, int presentVersions, int versionWrites) {
 		// create file if necessary
 		loadFile();
 		try {
@@ -102,47 +102,47 @@ public final class Outcome {
 			fileWriter.append(new SimpleDateFormat("hh:mm:ss").format(date));
 			fileWriter.append(',');
 			// write configuration
-			fileWriter.append(Integer.toString(Configuration.getRuntimeInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getRuntimeInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getNumPeersMin()));
+			fileWriter.append(Integer.toString(configuration.getNumPeersMin()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getNumPeersMax()));
+			fileWriter.append(Integer.toString(configuration.getNumPeersMax()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getNumPuts()));
+			fileWriter.append(Integer.toString(configuration.getNumPuts()));
 			fileWriter.append(',');
-			fileWriter.append(Configuration.getPutStrategyName());
+			fileWriter.append(configuration.getPutStrategyName());
 			fileWriter.append(',');
-			fileWriter.append(Configuration.getChurnStrategyName());
+			fileWriter.append(configuration.getChurnStrategyName());
 			fileWriter.append(',');
-			fileWriter.append(Configuration.getReplication());
+			fileWriter.append(configuration.getReplication());
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getReplicationFactor()));
+			fileWriter.append(Integer.toString(configuration.getReplicationFactor()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getReplicationIntervalInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getReplicationIntervalInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getPutTTLInSeconds()));
+			fileWriter.append(Integer.toString(configuration.getPutTTLInSeconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getPutPrepareTTLInSeconds()));
+			fileWriter.append(Integer.toString(configuration.getPutPrepareTTLInSeconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getTTLCheckIntervalInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getTTLCheckIntervalInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getNumKeys()));
+			fileWriter.append(Integer.toString(configuration.getNumKeys()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getPutConcurrencyFactor()));
+			fileWriter.append(Integer.toString(configuration.getPutConcurrencyFactor()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getPutDelayMinInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getPutDelayMinInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getPutDelayMaxInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getPutDelayMaxInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getChurnRateJoin()));
+			fileWriter.append(Integer.toString(configuration.getChurnRateJoin()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getChurnRateLeave()));
+			fileWriter.append(Integer.toString(configuration.getChurnRateLeave()));
 			fileWriter.append(',');
-			fileWriter.append(Double.toString(Configuration.getChurnJoinLeaveRate()));
+			fileWriter.append(Double.toString(configuration.getChurnJoinLeaveRate()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getChurnRateMinDelayInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getChurnRateMinDelayInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(Configuration.getChurnRateMaxDelayInMilliseconds()));
+			fileWriter.append(Integer.toString(configuration.getChurnRateMaxDelayInMilliseconds()));
 			fileWriter.append(',');
 			// write results
 			fileWriter.append(Integer.toString(presentVersions));

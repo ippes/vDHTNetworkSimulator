@@ -1,6 +1,5 @@
 package net.tomp2p.vdht;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,7 +23,7 @@ public class Utils {
 
 	private final static Logger logger = LoggerFactory.getLogger(Utils.class);
 
-	public static Number160 generateVersionKey(Number160 basedOnKey, String value) throws IOException {
+	public static Number160 generateVersionKey(Number160 basedOnKey, String value) {
 		// increase counter
 		long counter = basedOnKey.timestamp() + 1;
 		// create new version key based on increased counter and hash

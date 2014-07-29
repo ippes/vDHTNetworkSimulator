@@ -1,6 +1,5 @@
 package net.tomp2p.vdht;
 
-import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -43,10 +42,9 @@ public abstract class Executor implements Runnable {
 	 * @param numberExecutes
 	 *            amount of total executions till it stops, <code>-1</code> for
 	 *            endless execution
-	 * @throws IOException
 	 */
 	public Executor(ScheduledExecutorService scheduler, int minDelayInMilliseconds,
-			int maxDelayInMilliseconds, int numberExecutes) throws IOException {
+			int maxDelayInMilliseconds, int numberExecutes) {
 		this.scheduler = scheduler;
 		this.minDelayInMilliseconds = minDelayInMilliseconds;
 		logger.trace("min put delay in milliseconds = '{}'", minDelayInMilliseconds);
