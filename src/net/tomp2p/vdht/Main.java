@@ -20,6 +20,8 @@ public class Main {
 	private static Logger logger = LoggerFactory.getLogger(Main.class);
 
 	public static void main(String[] args) {
+		Thread.currentThread().setName("vDHT - Main");
+
 		List<File> configFiles = loadConfigFiles();
 
 		for (File configFile : configFiles) {

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.PeerBuilderDHT;
@@ -130,7 +131,7 @@ public class LocalNetworkSimulator {
 	public void startPutting() {
 		putCoordinators = new PutCoordinator[configuration.getNumKeys()];
 		for (int i = 0; i < putCoordinators.length; i++) {
-			putCoordinators[i] = new PutCoordinator();
+			putCoordinators[i] = new PutCoordinator(i);
 		}
 		logger.debug("Putting started.");
 	}
@@ -206,8 +207,13 @@ public class LocalNetworkSimulator {
 		private final ChurnStrategy churnStrategy;
 
 		public ChurnExecutor() {
-			super(Executors.newScheduledThreadPool(1), configuration.getChurnRateMinDelayInMilliseconds(),
-					configuration.getChurnRateMaxDelayInMilliseconds(), -1);
+			super(Executors.newScheduledThreadPool(1, new ThreadFactory() {
+				@Override
+				public Thread newThread(Runnable r) {
+					return new Thread(r, "vDHT - Churn");
+				}
+			}), configuration.getChurnRateMinDelayInMilliseconds(), configuration
+					.getChurnRateMaxDelayInMilliseconds(), -1);
 
 			this.churnJoinLeaveRate = configuration.getChurnJoinLeaveRate();
 			logger.trace("churn join/leave rate = '{}'", churnJoinLeaveRate);
@@ -293,20 +299,19 @@ public class LocalNetworkSimulator {
 
 	private final class PutCoordinator {
 
+		private final ScheduledExecutorService scheduler;
 		private final PutExecutor[] putExecutors;
 		private final Number480 key;
 
-		private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(configuration
-				.getPutConcurrencyFactor());
-
 		private String latestVersion;
 
-		public PutCoordinator() {
+		public PutCoordinator(final int putId) {
+			this.scheduler = Executors.newScheduledThreadPool(configuration.getPutConcurrencyFactor());
 			this.key = new Number480(random);
 			this.putExecutors = new PutExecutor[configuration.getPutConcurrencyFactor()];
 			for (int i = 0; i < putExecutors.length; i++) {
 				String id = String.valueOf((char) ('a' + i));
-				PutExecutor putExecutor = new PutExecutor(id, key, scheduler);
+				PutExecutor putExecutor = new PutExecutor(putId, id, key, scheduler);
 				putExecutor.start();
 				putExecutors[i] = putExecutor;
 			}
@@ -372,11 +377,13 @@ public class LocalNetworkSimulator {
 
 		private final Number480 key;
 		private final PutStrategy putStrategy;
+		private final int putId;
 		private final String id;
 
-		public PutExecutor(String id, Number480 key, ScheduledExecutorService scheduler) {
+		public PutExecutor(int putId, String id, Number480 key, ScheduledExecutorService scheduler) {
 			super(scheduler, configuration.getPutDelayMinInMilliseconds(), configuration
 					.getPutDelayMaxInMilliseconds(), configuration.getNumPuts());
+			this.putId = putId;
 			this.key = key;
 			this.id = id;
 
@@ -400,6 +407,13 @@ public class LocalNetworkSimulator {
 							"An unknown put approach '{}' was given. Selected '{}' as default put approach.",
 							putApproach, OptimisticPutStrategy.PUT_STRATEGY_NAME);
 			}
+		}
+
+		@Override
+		public void run() {
+			// quick and dirty
+			Thread.currentThread().setName("vDHT - Put " + putId + "-" + id);
+			super.run();
 		}
 
 		@Override
