@@ -5,6 +5,7 @@ import net.tomp2p.dht.FuturePut;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.storage.Data;
+import net.tomp2p.vdht.Configuration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,11 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 	public static final String PUT_STRATEGY_NAME = "traditional";
 
-	public TraditionalPutStrategy(String id, Number480 key) {
+	private final Configuration configuration;
+
+	public TraditionalPutStrategy(String id, Number480 key, Configuration configuration) {
 		super(id, key);
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -41,9 +45,13 @@ public final class TraditionalPutStrategy extends PutStrategy {
 		} else {
 			value = (String) result.object() + id;
 		}
+		Data data = new Data(value);
+		if (configuration.getPutTTLInSeconds() > 0) {
+			data.ttlSeconds(configuration.getPutTTLInSeconds());
+		}
 
 		// put updated version into network
-		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), new Data(value))
+		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), data)
 				.domainKey(key.domainKey()).start();
 		futurePut.awaitUninterruptibly();
 
