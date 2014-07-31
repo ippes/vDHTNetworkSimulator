@@ -1,6 +1,7 @@
 package net.tomp2p.vdht;
 
 import java.io.IOException;
+import java.net.Inet4Address;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -13,6 +14,7 @@ import net.tomp2p.dht.PeerBuilderDHT;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.dht.StorageMemory;
 import net.tomp2p.futures.FutureBootstrap;
+import net.tomp2p.futures.FutureDiscover;
 import net.tomp2p.p2p.PeerBuilder;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
@@ -76,6 +78,34 @@ public class LocalNetworkSimulator {
 
 				// enable replication if required
 				enableReplication(masterPeer);
+
+				if (!configuration.getBootstrapIP().equals("local") && configuration.getBootstrapPort() > 0) {
+					FutureDiscover futureDiscover = masterPeer.peer().discover()
+							.inetAddress(Inet4Address.getByName(configuration.getBootstrapIP()))
+							.ports(configuration.getBootstrapPort()).start();
+					futureDiscover.awaitUninterruptibly();
+
+					if (futureDiscover.isSuccess()) {
+						logger.debug("Discovering successful. Outside address is '{}'.",
+								futureDiscover.peerAddress());
+					} else {
+						logger.warn("Discovering failed: {}.", futureDiscover.failedReason());
+						throw new IllegalStateException("Discovering failed.");
+					}
+
+					FutureBootstrap futureBootstrap = masterPeer.peer().bootstrap()
+							.inetAddress(Inet4Address.getByName(configuration.getBootstrapIP()))
+							.ports(configuration.getBootstrapPort()).start();
+					futureBootstrap.awaitUninterruptibly();
+
+					if (futureBootstrap.isSuccess()) {
+						logger.debug("Bootstrapping successful. Bootstrapped to '{}'.",
+								configuration.getBootstrapIP());
+					} else {
+						logger.warn("Bootstrapping failed: {}.", futureBootstrap.failedReason());
+						throw new IllegalStateException("Bootstraping failed.");
+					}
+				}
 
 				logger.trace("Master Peer added to network. peer id = '{}'", masterPeer.peerID());
 			} else {
@@ -390,7 +420,7 @@ public class LocalNetworkSimulator {
 			String putApproach = configuration.getPutStrategyName();
 			switch (putApproach) {
 				case TraditionalPutStrategy.PUT_STRATEGY_NAME:
-					putStrategy = new TraditionalPutStrategy(id, key);
+					putStrategy = new TraditionalPutStrategy(id, key, configuration);
 					break;
 				case TraditionalVersionPutStrategy.PUT_STRATEGY_NAME:
 					putStrategy = new TraditionalVersionPutStrategy(id, key, configuration);

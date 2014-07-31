@@ -16,6 +16,8 @@ public final class Configuration {
 
 	// general settings
 	private final String PORT = "port";
+	private final String BOOTSTRAP_IP = "bootstrapIP";
+	private final String BOOTSTRAP_PORT = "bootstrapPort";
 	private final String RUNTIME_IN_MILLISECONDS = "runtimeInMilliseconds";
 	private final String NUM_PEERS_MIN = "numPeersMin";
 	private final String NUM_PEERS_MAX = "numPeersMax";
@@ -48,6 +50,8 @@ public final class Configuration {
 
 	// general settings
 	private final int port;
+	private final String bootstrapIP;
+	private final int bootstrapPort;
 	private final int runtimeInMilliseconds;
 	private final int numPeersMin;
 	private final int numPeersMax;
@@ -94,6 +98,8 @@ public final class Configuration {
 
 		// load general settings
 		this.port = Integer.parseInt(properties.getProperty(PORT));
+		this.bootstrapIP = properties.getProperty(BOOTSTRAP_IP);
+		this.bootstrapPort = Integer.parseInt(properties.getProperty(BOOTSTRAP_PORT));
 		this.runtimeInMilliseconds = Integer.parseInt(properties.getProperty(RUNTIME_IN_MILLISECONDS));
 		this.numPeersMin = Integer.parseInt(properties.getProperty(NUM_PEERS_MIN));
 		this.numPeersMax = Integer.parseInt(properties.getProperty(NUM_PEERS_MAX));
@@ -220,6 +226,24 @@ public final class Configuration {
 	 */
 	public int getPort() {
 		return port;
+	}
+
+	/**
+	 * Get value for BOOTSTRAP_IP from configuration.
+	 * 
+	 * @return ip address of the bootstrap node
+	 */
+	public String getBootstrapIP() {
+		return bootstrapIP;
+	}
+
+	/**
+	 * Get value for BOOTSTRAP_PORT from configuration.
+	 * 
+	 * @return port number of the bootstrap node
+	 */
+	public int getBootstrapPort() {
+		return bootstrapPort;
 	}
 
 	/**
