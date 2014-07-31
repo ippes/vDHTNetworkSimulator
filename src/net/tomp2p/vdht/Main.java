@@ -22,7 +22,7 @@ public class Main {
 	public static void main(String[] args) {
 		Thread.currentThread().setName("vDHT - Main");
 
-		List<File> configFiles = loadConfigFiles();
+		List<File> configFiles = loadConfigFiles(args);
 
 		for (File configFile : configFiles) {
 			try {
@@ -81,11 +81,17 @@ public class Main {
 		}
 	}
 
-	private static List<File> loadConfigFiles() {
+	private static List<File> loadConfigFiles(String[] args) {
 		List<File> configFiles = new ArrayList<File>();
-		for (File file : new File(".").listFiles()) {
-			if (file.getName().endsWith(".config")) {
-				configFiles.add(file);
+		if (args.length == 0) {
+			for (File file : new File(".").listFiles()) {
+				if (file.getName().endsWith(".config")) {
+					configFiles.add(file);
+				}
+			}
+		}else {
+			for (String configFileName: args) {
+				configFiles.add(new File(configFileName));
 			}
 		}
 		return configFiles;
