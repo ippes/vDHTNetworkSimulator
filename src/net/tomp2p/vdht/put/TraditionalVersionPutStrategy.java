@@ -65,7 +65,9 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 		// set based on key
 		data.basedOnSet().add(basedOnKey);
 		// set ttl
-		data.ttlSeconds(configuration.getPutTTLInSeconds());
+		if (configuration.getPutTTLInSeconds() > 0) {
+			data.ttlSeconds(configuration.getPutTTLInSeconds());
+		}
 		// generate a new version key
 		Number160 versionKey = Utils.generateVersionKey(basedOnKey, value);
 

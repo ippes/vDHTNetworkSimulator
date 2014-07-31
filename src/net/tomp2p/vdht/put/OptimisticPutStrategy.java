@@ -51,7 +51,9 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 			// set time to live
 			Data updatedData = result.getData();
-			updatedData.ttlSeconds(configuration.getPutTTLInSeconds());
+			if (configuration.getPutTTLInSeconds() > 0) {
+				updatedData.ttlSeconds(configuration.getPutTTLInSeconds());
+			}
 
 			// put updated version into network
 			FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), updatedData)

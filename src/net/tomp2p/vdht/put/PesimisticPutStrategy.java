@@ -72,10 +72,14 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
 				logger.debug("No version forks detected.");
 
+				Data data = new Data();
+				if (configuration.getPutTTLInSeconds() > 0) {
+					data.ttlSeconds(configuration.getPutTTLInSeconds());
+				}
+
 				// confirm put
 				FuturePut futurePutConfirm = peer.put(key.locationKey()).domainKey(key.domainKey())
-						.data(key.contentKey(), new Data().ttlSeconds(configuration.getPutTTLInSeconds()))
-						.versionKey(result.getVersionKey()).putConfirm().start();
+						.data(key.contentKey(), data).versionKey(result.getVersionKey()).putConfirm().start();
 				futurePutConfirm.awaitUninterruptibly();
 
 				// store version key
