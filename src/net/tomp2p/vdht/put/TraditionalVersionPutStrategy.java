@@ -1,5 +1,7 @@
 package net.tomp2p.vdht.put;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
@@ -49,15 +51,21 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 		NavigableMap<Number640, Data> map = new TreeMap<Number640, Data>(futureGet.dataMap());
 
 		// update value (append task's id)
-		String value;
+		Map<String, Integer> value;
 		if (map.isEmpty()) {
 			// reset value
-			value = id;
+			value = new HashMap<String, Integer>();
+			value.put(id, 1);
 		} else {
 			// retrieve latest entry
 			Entry<Number640, Data> lastEntry = map.lastEntry();
 			basedOnKey = lastEntry.getKey().versionKey();
-			value = (String) lastEntry.getValue().object() + id;
+			value = (Map<String, Integer>) lastEntry.getValue().object();
+			if (value.containsKey(id)) {
+				value.put(id, value.get(id) + 1);
+			} else {
+				value.put(id, 1);
+			}
 		}
 
 		// create new data object
@@ -69,7 +77,7 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 			data.ttlSeconds(configuration.getPutTTLInSeconds());
 		}
 		// generate a new version key
-		Number160 versionKey = Utils.generateVersionKey(basedOnKey, value);
+		Number160 versionKey = Utils.generateVersionKey(basedOnKey, value.toString());
 
 		// put updated version into network
 		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), data)

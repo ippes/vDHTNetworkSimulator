@@ -1,5 +1,8 @@
 package net.tomp2p.vdht.put;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FuturePut;
 import net.tomp2p.dht.PeerDHT;
@@ -37,13 +40,19 @@ public final class TraditionalPutStrategy extends PutStrategy {
 		futureGet.awaitUninterruptibly();
 
 		// get result and update it (append id)
-		String value;
+		Map<String, Integer> value;
 		Data result = futureGet.data();
 		if (result == null) {
 			// reset value
-			value = id;
+			value = new HashMap<String, Integer>();
+			value.put(id, 1);
 		} else {
-			value = (String) result.object() + id;
+			value = (Map<String, Integer>) result.object();
+			if (value.containsKey(id)) {
+				value.put(id, value.get(id) + 1);
+			} else {
+				value.put(id, 1);
+			}
 		}
 		Data data = new Data(value);
 		if (configuration.getPutTTLInSeconds() > 0) {

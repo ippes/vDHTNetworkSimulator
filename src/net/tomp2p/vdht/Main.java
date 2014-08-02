@@ -55,22 +55,24 @@ public class Main {
 					Thread.sleep(runtimeInMilliseconds);
 				} else {
 					// run till simulation stops
-					while (network.isRunning()) {
+					while (network.isPuttingRunning() || network.isChurnRunning()) {
 						Thread.sleep(500);
 					}
 				}
 
-				logger.info("Stopping simulator.");
 				network.shutDownChurn();
+				logger.info("Churn stopped.");
+
 				network.shutDownPutCoordinators();
+				logger.info("Putting stopped.");
 
-				logger.info("Loading and storing results.");
 				network.loadAndStoreResults();
+				logger.info("Results loaded and stored.");
 
-				logger.info("Shutdowning network.");
 				network.shutDownNetwork();
+				logger.info("Network is down.");
 
-				logger.info("Printing results.");
+				logger.debug("Printing results.");
 				network.printResults();
 
 				logger.info("========================================================");
