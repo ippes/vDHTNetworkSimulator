@@ -39,6 +39,7 @@ public final class Configuration {
 	// put settings
 	private final String NUM_KEYS = "numKeys";
 	private final String NUM_PUTS = "numPuts";
+	private final String MAX_VERSIONS = "maxVersions";
 	private final String PUT_CONCURRENCY_FACTOR = "putConcurrencyFactor";
 	private final String PUT_DELAY_MAX_IN_MILLISECONDS = "putDelayMaxInMilliseconds";
 	private final String PUT_DELAY_MIN_IN_MILLISECONDS = "putDelayMinInMilliseconds";
@@ -73,6 +74,7 @@ public final class Configuration {
 	// put settings
 	private final int numKeys;
 	private final int numPuts;
+	private final int maxVersions;
 	private final int putConcurrencyFactor;
 	private final int putDelayMaxInMilliseconds;
 	private final int putDelayMinInMilliseconds;
@@ -125,6 +127,7 @@ public final class Configuration {
 		// load put settings
 		this.numKeys = Integer.parseInt(properties.getProperty(NUM_KEYS));
 		this.numPuts = Integer.parseInt(properties.getProperty(NUM_PUTS));
+		this.maxVersions = Integer.parseInt(properties.getProperty(MAX_VERSIONS));
 		this.putConcurrencyFactor = Integer.parseInt(properties.getProperty(PUT_CONCURRENCY_FACTOR));
 		this.putDelayMaxInMilliseconds = Integer.parseInt(properties
 				.getProperty(PUT_DELAY_MAX_IN_MILLISECONDS));
@@ -133,6 +136,15 @@ public final class Configuration {
 		this.putStrategyName = properties.getProperty(PUT_STRATEGY_NAME);
 		this.putTTLInSeconds = Integer.parseInt(properties.getProperty(PUT_TTL_IN_SECONDS));
 		this.putPrepareTTLInSeconds = Integer.parseInt(properties.getProperty(PUT_PREPARE_TTL_IN_SECONDS));
+	}
+
+	/**
+	 * Get value for MAX_VERSIONS from configuration.
+	 * 
+	 * @return maximal amount of versions for one key
+	 */
+	public int getMaxVersions() {
+		return maxVersions;
 	}
 
 	/**
