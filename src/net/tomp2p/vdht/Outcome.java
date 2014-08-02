@@ -40,6 +40,8 @@ public final class Outcome {
 				fileWriter.append(',');
 				fileWriter.append("numPuts");
 				fileWriter.append(',');
+				fileWriter.append("maxVersions");
+				fileWriter.append(',');
 				fileWriter.append("putStrategyName");
 				fileWriter.append(',');
 				fileWriter.append("churnStrategyName");
@@ -109,6 +111,8 @@ public final class Outcome {
 			fileWriter.append(Integer.toString(configuration.getNumPeersMax()));
 			fileWriter.append(',');
 			fileWriter.append(Integer.toString(configuration.getNumPuts()));
+			fileWriter.append(',');
+			fileWriter.append(Integer.toString(configuration.getMaxVersions()));
 			fileWriter.append(',');
 			fileWriter.append(configuration.getPutStrategyName());
 			fileWriter.append(',');
