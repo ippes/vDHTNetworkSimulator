@@ -192,6 +192,14 @@ public class Utils {
 		return result;
 	}
 
+	public static String getVersionNumbersFromMap(Map<Number640, Data> dataMap) {
+		String result = "";
+		for (Number640 key : dataMap.keySet()) {
+			result += key.versionKey().timestamp() + " ";
+		}
+		return result;
+	}
+
 	public static String getVersionKeysFromDigest(Map<PeerAddress, DigestResult> rawDigest) {
 		String tmp = "";
 		for (PeerAddress peerAddress : rawDigest.keySet()) {
@@ -213,6 +221,20 @@ public class Utils {
 		String tmp = "";
 		for (Number640 key : versionTree.keySet()) {
 			tmp += key.versionKey() + " " + versionTree.get(key).toString() + " ";
+		}
+		return tmp;
+	}
+
+	public static String getVersionNumbersFromMap2(NavigableMap<Number640, Set<Number160>> versionTree) {
+		String tmp = "";
+		for (Number640 key : versionTree.keySet()) {
+			tmp += key.versionKey().timestamp() + "[";
+			boolean first = true;
+			for (Number160 bKey : versionTree.get(key)) {
+				tmp += (first ? "" : " ") + bKey.timestamp();
+				first = false;
+			}
+			tmp += "], ";
 		}
 		return tmp;
 	}
