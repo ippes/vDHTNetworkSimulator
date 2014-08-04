@@ -10,6 +10,7 @@ import java.util.TreeMap;
 
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FuturePut;
+import net.tomp2p.dht.FutureRemove;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
@@ -31,7 +32,8 @@ import org.slf4j.LoggerFactory;
  */
 public final class PesimisticPutStrategy extends PutStrategy {
 
-	private final Logger logger = LoggerFactory.getLogger(PesimisticPutStrategy.class);
+	private final Logger logger = LoggerFactory
+			.getLogger(PesimisticPutStrategy.class);
 
 	public static final String PUT_STRATEGY_NAME = "pessimistic";
 
@@ -43,7 +45,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	private int versionDelay = 0;
 	private int versionForkAfterGetMerge = 0;
 
-	public PesimisticPutStrategy(String id, Number480 key, Configuration configuration) {
+	public PesimisticPutStrategy(String id, Number480 key,
+			Configuration configuration) {
 		super(id, key);
 		this.configuration = configuration;
 	}
@@ -62,8 +65,10 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			updatedData.ttlSeconds(configuration.getPutPrepareTTLInSeconds());
 
 			// put updated version into network
-			FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), updatedData)
-					.domainKey(key.domainKey()).versionKey(result.element1()).start();
+			FuturePut futurePut = peer.put(key.locationKey())
+					.data(key.contentKey(), updatedData)
+					.domainKey(key.domainKey()).versionKey(result.element1())
+					.start();
 			futurePut.awaitUninterruptibly();
 
 			logger.debug("Put. value = '{}'", result.element0().object());
@@ -76,8 +81,10 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				}
 
 				// confirm put
-				FuturePut futurePutConfirm = peer.put(key.locationKey()).domainKey(key.domainKey())
-						.data(key.contentKey(), data).versionKey(result.element1()).putConfirm().start();
+				FuturePut futurePutConfirm = peer.put(key.locationKey())
+						.domainKey(key.domainKey())
+						.data(key.contentKey(), data)
+						.versionKey(result.element1()).putConfirm().start();
 				futurePutConfirm.awaitUninterruptibly();
 
 				// store version key
@@ -94,9 +101,14 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				logger.warn("Version fork after put detected. Rejecting and retrying put.");
 
 				// reject put
-				FuturePut futurePutConfirm = peer.put(key.locationKey()).domainKey(key.domainKey())
-						.data(key.contentKey(), new Data()).versionKey(result.element1()).putReject().start();
-				futurePutConfirm.awaitUninterruptibly();
+				FutureRemove futureRemove;
+				do {
+					futureRemove = peer.remove(key.locationKey())
+							.domainKey(key.domainKey())
+							.contentKey(key.contentKey())
+							.versionKey(result.element1()).start();
+					futureRemove.awaitUninterruptibly();
+				} while (futureRemove.isSuccess());
 
 				versionForkAfterPut++;
 			}
@@ -104,36 +116,44 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Pair<Data, Number160> getAndUpdate(PeerDHT peer) throws IOException, ClassNotFoundException {
+	private Pair<Data, Number160> getAndUpdate(PeerDHT peer)
+			throws IOException, ClassNotFoundException {
 		while (true) {
 			// fetch latest versions from the network, request also digest
-			FutureGet futureGet = peer.get(key.locationKey()).domainKey(key.domainKey())
-					.contentKey(key.contentKey()).getLatest().withDigest().start();
+			FutureGet futureGet = peer.get(key.locationKey())
+					.domainKey(key.domainKey()).contentKey(key.contentKey())
+					.getLatest().withDigest().start();
 			futureGet.awaitUninterruptibly();
 
 			// get raw result from all contacted peers
-			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet.rawData();
+			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet
+					.rawData();
 			Map<PeerAddress, DigestResult> rawDigest = futureGet.rawDigest();
 
 			// build the version tree from raw digest result;
-			NavigableMap<Number640, Set<Number160>> versionTree = Utils.buildVersionTree(rawDigest);
+			NavigableMap<Number640, Set<Number160>> versionTree = Utils
+					.buildVersionTree(rawDigest);
 
 			// join all versions in one map
-			Map<Number640, Data> latestVersions = Utils.getLatestVersions(rawData);
+			Map<Number640, Data> latestVersions = Utils
+					.getLatestVersions(rawData);
 
 			// logger.debug("Got. latest versions = '{}' version history = '{}'",
 			// Utils.getVersionNumbersFromMap(latestVersions),
 			// Utils.getVersionNumbersFromMap2(versionTree));
 
-			if (Utils.hasVersionDelay(latestVersions, versionTree) || isDelayed(versionTree)) {
+			if (Utils.hasVersionDelay(latestVersions, versionTree)
+					|| isDelayed(versionTree)) {
 				logger.warn("Detected a version delay. versions = '{}'",
 						Utils.getVersionKeysFromMap(latestVersions));
 				versionDelay++;
 				Utils.waitAMoment();
 				continue;
 			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
-				logger.warn("Got a version fork. Merging. versions = '{}'  latestVersions = '{}'",
-						Utils.getVersionKeysFromPeers(rawData), Utils.getVersionKeysFromMap(latestVersions));
+				logger.warn(
+						"Got a version fork. Merging. versions = '{}'  latestVersions = '{}'",
+						Utils.getVersionKeysFromPeers(rawData),
+						Utils.getVersionKeysFromMap(latestVersions));
 				versionForkAfterGetMerge++;
 				return updateMerge(latestVersions);
 			} else {
@@ -145,8 +165,10 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					basedOnKey = Number160.ZERO;
 				} else {
 					// retrieve latest entry
-					Entry<Number640, Data> lastEntry = latestVersions.entrySet().iterator().next();
-					value = ((Map<String, Integer>) lastEntry.getValue().object());
+					Entry<Number640, Data> lastEntry = latestVersions
+							.entrySet().iterator().next();
+					value = ((Map<String, Integer>) lastEntry.getValue()
+							.object());
 					basedOnKey = lastEntry.getKey().versionKey();
 				}
 
@@ -162,7 +184,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				// create new data wrapper
 				Data data = new Data(value).addBasedOn(basedOnKey);
 				// generate a new version key
-				Number160 versionKey = Utils.generateVersionKey(basedOnKey, value.toString());
+				Number160 versionKey = Utils.generateVersionKey(basedOnKey,
+						value.toString());
 
 				return new Pair<Data, Number160>(data, versionKey);
 			}
@@ -170,19 +193,23 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Pair<Data, Number160> updateMerge(Map<Number640, Data> versionsToMerge)
+	private Pair<Data, Number160> updateMerge(
+			Map<Number640, Data> versionsToMerge)
 			throws ClassNotFoundException, IOException {
-		if (versionsToMerge == null || versionsToMerge.isEmpty() || versionsToMerge.size() < 2) {
+		if (versionsToMerge == null || versionsToMerge.isEmpty()
+				|| versionsToMerge.size() < 2) {
 			throw new IllegalArgumentException(
 					"Map with version to merge can't be null, empty or having only one entry.");
 		}
 
-		TreeMap<Number640, Data> sortedMap = new TreeMap<Number640, Data>(versionsToMerge);
+		TreeMap<Number640, Data> sortedMap = new TreeMap<Number640, Data>(
+				versionsToMerge);
 
 		// merge maps together
 		Map<String, Integer> mergedValue = new HashMap<String, Integer>();
 		for (Number640 key : versionsToMerge.keySet()) {
-			Map<String, Integer> value = (Map<String, Integer>) versionsToMerge.get(key).object();
+			Map<String, Integer> value = (Map<String, Integer>) versionsToMerge
+					.get(key).object();
 			for (String id : value.keySet()) {
 				if (mergedValue.containsKey(id)) {
 					if (mergedValue.get(id) > value.get(id)) {
@@ -210,25 +237,29 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			data.addBasedOn(key.versionKey());
 		}
 		// generate a new version key
-		Number160 versionKey = Utils.generateVersionKey(sortedMap.lastEntry().getKey().versionKey(),
-				mergedValue.toString());
+		Number160 versionKey = Utils.generateVersionKey(sortedMap.lastEntry()
+				.getKey().versionKey(), mergedValue.toString());
 
 		return new Pair<Data, Number160>(data, versionKey);
 	}
 
 	/**
-	 * Checks if the latest version of the given digest is older than the cached version.
+	 * Checks if the latest version of the given digest is older than the cached
+	 * version.
 	 * 
 	 * @param versionTree
 	 *            digest containing all known versions
-	 * @return <code>true</code> if cached version is newer, <code>false</code> if not
+	 * @return <code>true</code> if cached version is newer, <code>false</code>
+	 *         if not
 	 */
-	private boolean isDelayed(NavigableMap<Number640, Set<Number160>> versionTree) {
+	private boolean isDelayed(
+			NavigableMap<Number640, Set<Number160>> versionTree) {
 		// get latest version, and store it if newer
 		if (!versionTree.isEmpty()) {
 			Number160 latestVersion = versionTree.lastKey().versionKey();
 			if (latestVersion.compareTo(memorizedVersionKey) < 0) {
-				logger.warn("Detected a later version. memorizedVersion = '{}' latestVersion='{}'",
+				logger.warn(
+						"Detected a later version. memorizedVersion = '{}' latestVersion='{}'",
 						memorizedVersionKey, latestVersion);
 				memorizedVersionKey = latestVersion;
 				return true;
@@ -240,8 +271,10 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	@Override
 	public void printResults() {
 		logger.debug("id = '{}', version delays = '{}'", id, versionDelay);
-		logger.debug("id = '{}', version forks after put = '{}'", id, versionForkAfterPut);
-		logger.debug("id = '{}', version forks after get and merge = '{}'", id, versionForkAfterGetMerge);
+		logger.debug("id = '{}', version forks after put = '{}'", id,
+				versionForkAfterPut);
+		logger.debug("id = '{}', version forks after get and merge = '{}'", id,
+				versionForkAfterGetMerge);
 	}
 
 }
