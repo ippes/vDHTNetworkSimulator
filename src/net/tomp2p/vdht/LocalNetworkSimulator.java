@@ -174,7 +174,7 @@ public class LocalNetworkSimulator {
 	public boolean isPuttingRunning() {
 		boolean shutdown = true;
 		for (PutCoordinator putCoordinator : putCoordinators) {
-			shutdown &= putCoordinator.isShutDown();
+			shutdown = shutdown && putCoordinator.isShutDown();
 		}
 		return !shutdown;
 	}

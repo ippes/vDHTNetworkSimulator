@@ -167,7 +167,7 @@ public class Utils {
 	public static void waitAMoment() {
 		while (true) {
 			try {
-				Thread.sleep(500);
+				Thread.sleep(1000);
 				break;
 			} catch (InterruptedException e) {
 				logger.error("Got interupted.", e);

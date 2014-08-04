@@ -55,7 +55,7 @@ public class Main {
 					Thread.sleep(runtimeInMilliseconds);
 				} else {
 					// run till simulation stops
-					while (network.isPuttingRunning() || network.isChurnRunning()) {
+					while (network.isPuttingRunning()) {
 						Thread.sleep(500);
 					}
 				}
