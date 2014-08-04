@@ -31,8 +31,8 @@ public final class ChurnExecutor implements Runnable {
 	private boolean shutdown = false;
 	private boolean stopped = false;
 
-	public ChurnExecutor(Configuration configuration, LocalNetworkSimulator simulator) {
-		this.configuration = configuration;
+	public ChurnExecutor(LocalNetworkSimulator simulator) {
+		this.configuration = simulator.getConfiguration();
 		this.simulator = simulator;
 		String churnStrategyName = configuration.getChurnStrategyName();
 		switch (churnStrategyName) {
