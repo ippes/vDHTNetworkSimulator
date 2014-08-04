@@ -64,6 +64,7 @@ public final class ChurnExecutor implements Runnable {
 
 	@Override
 	public void run() {
+		Thread.currentThread().setName("vDHT - Churn");
 		try {
 			// toggle join/leaves
 			double churnRate = random.nextDouble();
