@@ -19,7 +19,6 @@ public final class PutExecutor implements Runnable {
 
 	private boolean shutdown = false;
 	private boolean stopped = false;
-	private long counterExecutes = 0;
 
 	private final int putId;
 	private final String id;
@@ -78,14 +77,11 @@ public final class PutExecutor implements Runnable {
 			if (shutdown) {
 				stopped = true;
 				return;
-			} else if (counterExecutes == configuration.getNumPuts()) {
+			} else if (putStrategy.getPutCounter() == configuration.getNumPuts()) {
 				shutdown = true;
 				stopped = true;
 				return;
 			}
-
-			// increase counter
-			counterExecutes++;
 
 			// schedule next task with a varying delay
 			int delay = delay();

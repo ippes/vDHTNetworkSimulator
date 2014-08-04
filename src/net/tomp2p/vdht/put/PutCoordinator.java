@@ -44,9 +44,9 @@ public final class PutCoordinator {
 	}
 
 	public boolean isShutDown() {
-		boolean shutdown = false;
+		boolean shutdown = true;
 		for (PutExecutor putExecutor : putExecutors) {
-			shutdown &= putExecutor.isShutdown();
+			shutdown = shutdown && putExecutor.isShutdown();
 		}
 		return shutdown;
 	}

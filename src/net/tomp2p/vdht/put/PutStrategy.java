@@ -13,7 +13,7 @@ public abstract class PutStrategy {
 	protected final String id;
 	protected final Number480 key;
 
-	protected int putCounter;
+	protected int putCounter = 0;
 
 	public PutStrategy(String id, Number480 key) {
 		this.id = id;
