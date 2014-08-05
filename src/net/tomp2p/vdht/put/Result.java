@@ -1,18 +1,25 @@
 package net.tomp2p.vdht.put;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.tomp2p.peers.Number480;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import net.tomp2p.peers.Number480;
 
 public class Result {
 
 	private final Logger logger = LoggerFactory.getLogger(Result.class);
 
-	private final Map<String, Integer> versions = new HashMap<String, Integer>();
+	private final Map<String, Integer> writes = new HashMap<String, Integer>();
+	private final Map<String, Integer> merges = new HashMap<String, Integer>();
+	private final Map<String, Integer> delays = new HashMap<String, Integer>();
+	private final Map<String, Integer> forksAfterPut = new HashMap<String, Integer>();
+	private final Map<String, Integer> forksAfterGet = new HashMap<String, Integer>();
+	private final Map<String, Long> runtimes = new HashMap<String, Long>();
 
 	private final Number480 key;
 
@@ -30,14 +37,98 @@ public class Result {
 		this.latestVersion = latestVersion;
 	}
 
-	public void putWriteCounter(String id, int writes) {
-		versions.put(id, writes);
+	public synchronized void increaseWriteCounter(String id) {
+		if (writes.containsKey(id)) {
+			writes.put(id, writes.get(id) + 1);
+		} else {
+			writes.put(id, 1);
+		}
+	}
+
+	public synchronized void decreaseWriteCounter(String id) {
+		if (writes.containsKey(id)) {
+			writes.put(id, writes.get(id) - 1);
+		} else {
+			logger.error("Should be never called.");
+		}
+	}
+
+	public synchronized void increaseMergeCounter(String id) {
+		if (merges.containsKey(id)) {
+			merges.put(id, merges.get(id) + 1);
+		} else {
+			merges.put(id, 1);
+		}
+	}
+
+	public synchronized void increaseDelayCounter(String id) {
+		if (delays.containsKey(id)) {
+			delays.put(id, delays.get(id) + 1);
+		} else {
+			delays.put(id, 1);
+		}
+	}
+
+	public synchronized void increaseForkAfterGetCounter(String id) {
+		if (forksAfterGet.containsKey(id)) {
+			forksAfterGet.put(id, forksAfterGet.get(id) + 1);
+		} else {
+			forksAfterGet.put(id, 1);
+		}
+	}
+
+	public synchronized void increaseForkAfterPutCounter(String id) {
+		if (forksAfterPut.containsKey(id)) {
+			forksAfterPut.put(id, forksAfterPut.get(id) + 1);
+		} else {
+			forksAfterPut.put(id, 1);
+		}
+	}
+
+	public synchronized void storeRuntime(String id, long runtime) {
+		runtimes.put(id, runtime);
+	}
+
+	public int getWriteCounter(String id) {
+		return writes.get(id);
 	}
 
 	public int countWrites() {
 		int counter = 0;
-		for (int writes : versions.values()) {
+		for (int writes : writes.values()) {
 			counter += writes;
+		}
+		return counter;
+	}
+
+	public int countMerges() {
+		int counter = 0;
+		for (int merges : merges.values()) {
+			counter += merges;
+		}
+		return counter;
+	}
+
+	public int countDelays() {
+		int counter = 0;
+		for (int delays : delays.values()) {
+			counter += delays;
+		}
+		return counter;
+	}
+
+	public int countForksAfterGet() {
+		int counter = 0;
+		for (int forksAfterGet : forksAfterGet.values()) {
+			counter += forksAfterGet;
+		}
+		return counter;
+	}
+
+	public int countForksAfterPut() {
+		int counter = 0;
+		for (int forksAfterPut : forksAfterPut.values()) {
+			counter += forksAfterPut;
 		}
 		return counter;
 	}
@@ -50,7 +141,18 @@ public class Result {
 		return counter;
 	}
 
+	public long getLongestRuntime() {
+		return Collections.max(new ArrayList<Long>(runtimes.values()));
+	}
+
 	public void printResults() {
-		logger.debug("latest version = '{}' version writes = '{}' key = '{}'", latestVersion, versions, key);
+		logger.debug("latest version  = '{}'", latestVersion);
+		logger.debug("version writes  = '{}'", writes);
+		logger.debug("merges          = '{}'", merges);
+		logger.debug("merges          = '{}'", delays);
+		logger.debug("forks after get = '{}'", forksAfterGet);
+		logger.debug("forks after put = '{}'", forksAfterPut);
+		logger.debug("runtimes        = '{}'", runtimes);
+		// logger.debug("key             = '{}'", key);
 	}
 }

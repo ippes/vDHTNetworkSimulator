@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import net.tomp2p.vdht.put.Result;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,8 +60,6 @@ public final class Outcome {
 				fileWriter.append(',');
 				fileWriter.append("ttlCheckIntervalInMilliseconds");
 				fileWriter.append(',');
-				fileWriter.append("numKeys");
-				fileWriter.append(',');
 				fileWriter.append("putConcurrencyFactor");
 				fileWriter.append(',');
 				fileWriter.append("putDelayMinInMilliseconds");
@@ -79,6 +79,16 @@ public final class Outcome {
 				fileWriter.append("presentVersions");
 				fileWriter.append(',');
 				fileWriter.append("versionWrites");
+				fileWriter.append(',');
+				fileWriter.append("merges");
+				fileWriter.append(',');
+				fileWriter.append("delays");
+				fileWriter.append(',');
+				fileWriter.append("forksAfterGet");
+				fileWriter.append(',');
+				fileWriter.append("forksAfterPut");
+				fileWriter.append(',');
+				fileWriter.append("elapsedTime");
 				fileWriter.append('\n');
 
 				fileWriter.flush();
@@ -89,7 +99,7 @@ public final class Outcome {
 		}
 	}
 
-	public static void writeResult(Configuration configuration, int presentVersions, int versionWrites) {
+	public static void writeResult(Configuration configuration, Result result) {
 		// create file if necessary
 		loadFile();
 		try {
@@ -130,8 +140,6 @@ public final class Outcome {
 			fileWriter.append(',');
 			fileWriter.append(Integer.toString(configuration.getTTLCheckIntervalInMilliseconds()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(configuration.getNumKeys()));
-			fileWriter.append(',');
 			fileWriter.append(Integer.toString(configuration.getPutConcurrencyFactor()));
 			fileWriter.append(',');
 			fileWriter.append(Integer.toString(configuration.getPutDelayMinInMilliseconds()));
@@ -149,9 +157,19 @@ public final class Outcome {
 			fileWriter.append(Integer.toString(configuration.getChurnRateMaxDelayInMilliseconds()));
 			fileWriter.append(',');
 			// write results
-			fileWriter.append(Integer.toString(presentVersions));
+			fileWriter.append(Integer.toString(result.countVersions()));
 			fileWriter.append(',');
-			fileWriter.append(Integer.toString(versionWrites));
+			fileWriter.append(Integer.toString(result.countWrites()));
+			fileWriter.append(',');
+			fileWriter.append(Integer.toString(result.countMerges()));
+			fileWriter.append(',');
+			fileWriter.append(Integer.toString(result.countDelays()));
+			fileWriter.append(',');
+			fileWriter.append(Integer.toString(result.countForksAfterGet()));
+			fileWriter.append(',');
+			fileWriter.append(Integer.toString(result.countForksAfterPut()));
+			fileWriter.append(',');
+			fileWriter.append(Long.toString(result.getLongestRuntime()));
 			fileWriter.append('\n');
 
 			fileWriter.flush();
