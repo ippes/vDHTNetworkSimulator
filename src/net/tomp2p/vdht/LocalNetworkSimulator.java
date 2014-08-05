@@ -24,7 +24,6 @@ import net.tomp2p.vdht.churn.ChurnExecutor;
 import net.tomp2p.vdht.churn.ChurnStrategy;
 import net.tomp2p.vdht.put.PutCoordinator;
 import net.tomp2p.vdht.put.PutStrategy;
-import net.tomp2p.vdht.put.Result;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,14 +36,14 @@ import org.slf4j.LoggerFactory;
  */
 public class LocalNetworkSimulator {
 
-	private static Logger logger = LoggerFactory.getLogger(LocalNetworkSimulator.class);
+	private static Logger logger = LoggerFactory
+			.getLogger(LocalNetworkSimulator.class);
 
 	private PeerDHT masterPeer;
 	private final List<PeerDHT> peers = new ArrayList<PeerDHT>();
 
 	private ChurnExecutor churnExecutor;
-	private PutCoordinator[] putCoordinators;
-	private Result[] results;
+	private PutCoordinator putCoordinator;
 
 	private final Random random = new Random();
 	private final KeyLock<Number160> keyLock = new KeyLock<Number160>();
@@ -55,9 +54,14 @@ public class LocalNetworkSimulator {
 		this.configuration = configuration;
 	}
 
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
 	public void createNetwork() throws IOException {
 		// initially create peers within given boundaries
-		int numPeers = (configuration.getNumPeersMax() + configuration.getNumPeersMin()) / 2;
+		int numPeers = (configuration.getNumPeersMax() + configuration
+				.getNumPeersMin()) / 2;
 		for (int i = 0; i < numPeers; i++) {
 			if (i == 0) {
 				// create master peer
@@ -66,35 +70,49 @@ public class LocalNetworkSimulator {
 				// enable replication if required
 				enableReplication(masterPeer);
 
-				if (!configuration.getBootstrapIP().equals("local") && configuration.getBootstrapPort() > 0) {
-					FutureDiscover futureDiscover = masterPeer.peer().discover()
-							.inetAddress(Inet4Address.getByName(configuration.getBootstrapIP()))
+				if (!configuration.getBootstrapIP().equals("local")
+						&& configuration.getBootstrapPort() > 0) {
+					FutureDiscover futureDiscover = masterPeer
+							.peer()
+							.discover()
+							.inetAddress(
+									Inet4Address.getByName(configuration
+											.getBootstrapIP()))
 							.ports(configuration.getBootstrapPort()).start();
 					futureDiscover.awaitUninterruptibly();
 
 					if (futureDiscover.isSuccess()) {
-						logger.debug("Discovering successful. Outside address is '{}'.",
+						logger.debug(
+								"Discovering successful. Outside address is '{}'.",
 								futureDiscover.peerAddress());
 					} else {
-						logger.warn("Discovering failed: {}.", futureDiscover.failedReason());
+						logger.warn("Discovering failed: {}.",
+								futureDiscover.failedReason());
 						throw new IllegalStateException("Discovering failed.");
 					}
 
-					FutureBootstrap futureBootstrap = masterPeer.peer().bootstrap()
-							.inetAddress(Inet4Address.getByName(configuration.getBootstrapIP()))
+					FutureBootstrap futureBootstrap = masterPeer
+							.peer()
+							.bootstrap()
+							.inetAddress(
+									Inet4Address.getByName(configuration
+											.getBootstrapIP()))
 							.ports(configuration.getBootstrapPort()).start();
 					futureBootstrap.awaitUninterruptibly();
 
 					if (futureBootstrap.isSuccess()) {
-						logger.debug("Bootstrapping successful. Bootstrapped to '{}'.",
+						logger.debug(
+								"Bootstrapping successful. Bootstrapped to '{}'.",
 								configuration.getBootstrapIP());
 					} else {
-						logger.warn("Bootstrapping failed: {}.", futureBootstrap.failedReason());
+						logger.warn("Bootstrapping failed: {}.",
+								futureBootstrap.failedReason());
 						throw new IllegalStateException("Bootstraping failed.");
 					}
 				}
 
-				logger.trace("Master Peer added to network. peer id = '{}'", masterPeer.peerID());
+				logger.trace("Master Peer added to network. peer id = '{}'",
+						masterPeer.peerID());
 			} else {
 				// create peer
 				PeerDHT peer = createPeer(false);
@@ -103,11 +121,13 @@ public class LocalNetworkSimulator {
 				enableReplication(peer);
 
 				// bootstrap to master peer
-				FutureBootstrap fBoo = peer.peer().bootstrap().peerAddress(masterPeer.peerAddress()).start();
+				FutureBootstrap fBoo = peer.peer().bootstrap()
+						.peerAddress(masterPeer.peerAddress()).start();
 				fBoo.awaitUninterruptibly();
 
 				peers.add(peer);
-				logger.trace("Peer added to network. peer id = '{}'", peer.peerID());
+				logger.trace("Peer added to network. peer id = '{}'",
+						peer.peerID());
 			}
 		}
 		logger.debug("Network created. numPeers = '{}'", numPeers);
@@ -117,37 +137,48 @@ public class LocalNetworkSimulator {
 		// create a new peer id
 		Number160 peerId = new Number160(random);
 		// disable peer verification (faster mutual acceptance)
-		PeerMapConfiguration peerMapConfiguration = new PeerMapConfiguration(peerId);
+		PeerMapConfiguration peerMapConfiguration = new PeerMapConfiguration(
+				peerId);
 		peerMapConfiguration.peerVerification(false);
 		PeerMap peerMap = new PeerMap(peerMapConfiguration);
 		// reduce TCP number of short-lived TCP connections to avoid timeouts
-		ChannelClientConfiguration channelConfig = PeerBuilder.createDefaultChannelClientConfiguration();
+		ChannelClientConfiguration channelConfig = PeerBuilder
+				.createDefaultChannelClientConfiguration();
 		channelConfig.maxPermitsTCP(10);
 
-		return new PeerBuilderDHT(new PeerBuilder(peerId).ports(configuration.getPort()).peerMap(peerMap)
-				.masterPeer(isMaster ? null : masterPeer.peer()).channelClientConfiguration(channelConfig)
-				.start()).storage(
-				new StorageMemory(configuration.getTTLCheckIntervalInMilliseconds(), configuration
+		return new PeerBuilderDHT(new PeerBuilder(peerId)
+				.ports(configuration.getPort()).peerMap(peerMap)
+				.masterPeer(isMaster ? null : masterPeer.peer())
+				.channelClientConfiguration(channelConfig).start()).storage(
+				new StorageMemory(configuration
+						.getTTLCheckIntervalInMilliseconds(), configuration
 						.getMaxVersions())).start();
 	}
 
 	private void enableReplication(PeerDHT peer) {
 		switch (configuration.getReplication()) {
-			case "off":
-				// don't enable any replication
-				break;
-			case "0Root":
-				// set replication interval, start replication with 0-root approach
-				new IndirectReplication(peer)
-						.intervalMillis(configuration.getReplicationIntervalInMilliseconds())
-						.replicationFactor(configuration.getReplicationFactor()).start();
-				break;
-			case "nRoot":
-			default:
-				// set replication interval, start replication with n-root approach
-				new IndirectReplication(peer)
-						.intervalMillis(configuration.getReplicationIntervalInMilliseconds()).nRoot()
-						.replicationFactor(configuration.getReplicationFactor()).start();
+		case "off":
+			// don't enable any replication
+			break;
+		case "0Root":
+			// set replication interval, start replication with 0-root approach
+			new IndirectReplication(peer)
+					.intervalMillis(
+							configuration
+									.getReplicationIntervalInMilliseconds())
+					.replicationFactor(configuration.getReplicationFactor())
+					.start();
+			break;
+		case "nRoot":
+		default:
+			// set replication interval, start replication with n-root approach
+			new IndirectReplication(peer)
+					.intervalMillis(
+							configuration
+									.getReplicationIntervalInMilliseconds())
+					.nRoot()
+					.replicationFactor(configuration.getReplicationFactor())
+					.start();
 		}
 	}
 
@@ -155,44 +186,40 @@ public class LocalNetworkSimulator {
 		if (configuration.getChurnStrategyName().equals("off")) {
 			logger.debug("No churn enabled.");
 		} else {
-			churnExecutor = new ChurnExecutor(configuration, this);
+			churnExecutor = new ChurnExecutor(this);
 			churnExecutor.start();
 			logger.debug("Churn started.");
 		}
 	}
 
 	public void startPutting() {
-		putCoordinators = new PutCoordinator[configuration.getNumKeys()];
-		results = new Result[configuration.getNumKeys()];
-		for (int i = 0; i < putCoordinators.length; i++) {
-			putCoordinators[i] = new PutCoordinator(i, configuration, this);
-			putCoordinators[i].start();
-		}
+		putCoordinator = new PutCoordinator(this);
+		putCoordinator.start();
 		logger.debug("Putting started.");
 	}
 
 	public boolean isPuttingRunning() {
-		boolean shutdown = true;
-		for (PutCoordinator putCoordinator : putCoordinators) {
-			shutdown = shutdown && putCoordinator.isShutDown();
-		}
-		return !shutdown;
+		return !putCoordinator.isShutDown();
 	}
 
 	public boolean isChurnRunning() {
 		return !churnExecutor.isShutdown();
 	}
 
-	public void shutDownChurn() {
+	public void shutDownChurn() throws InterruptedException {
 		if (churnExecutor != null) {
 			churnExecutor.shutdown();
+			while (isChurnRunning()) {
+				Thread.sleep(100);
+			}
 		}
 	}
 
-	public void shutDownPutCoordinators() {
-		if (putCoordinators != null) {
-			for (int i = 0; i < putCoordinators.length; i++) {
-				putCoordinators[i].shutdown();
+	public void shutDownPutCoordinators() throws InterruptedException {
+		if (putCoordinator != null) {
+			putCoordinator.shutdown();
+			while (isPuttingRunning()) {
+				Thread.sleep(100);
 			}
 		}
 	}
@@ -209,26 +236,20 @@ public class LocalNetworkSimulator {
 	}
 
 	public void loadAndStoreResults() {
-		int versionWrites = 0;
-		int presentVersions = 0;
-		for (int i = 0; i < putCoordinators.length; i++) {
-			results[i] = putCoordinators[i].loadResults();
-			versionWrites += results[i].countWrites();
-			presentVersions += results[i].countVersions();
-		}
+		// load latest version
+		putCoordinator.loadResults();
 		// store settings and results in a file
-		Outcome.writeResult(configuration, presentVersions, versionWrites);
+		Outcome.writeResult(configuration, putCoordinator.getResult());
 	}
 
 	public void printResults() {
-		for (int i = 0; i < results.length; i++) {
-			results[i].printResults();
-		}
+		putCoordinator.getResult().printResults();
 	}
 
 	public void addPeersToTheNetwork(ChurnStrategy churnStrategy) {
 		int numberOfPeerToJoin = churnStrategy.getNumJoiningPeers(peers.size());
-		logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin, peers.size() + 1);
+		logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin,
+				peers.size() + 1);
 		for (int i = 0; i < numberOfPeerToJoin; i++) {
 			try {
 				// create new peer to join
@@ -243,7 +264,8 @@ public class LocalNetworkSimulator {
 				futureBootstrap.awaitUninterruptibly();
 
 				peers.add(newPeer);
-				logger.trace("New peer joined the network. peer id = '{}'", newPeer.peerID());
+				logger.trace("New peer joined the network. peer id = '{}'",
+						newPeer.peerID());
 			} catch (IOException e) {
 				logger.error("Couldn't create a new peer.", e);
 			}
@@ -251,8 +273,10 @@ public class LocalNetworkSimulator {
 	}
 
 	public void removePeersFromNetwork(ChurnStrategy churnStrategy) {
-		int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers.size());
-		logger.debug("Leaving {} peers. # peers = '{}'", numberOfLeavingPeers, peers.size() + 1);
+		int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers
+				.size());
+		logger.debug("Leaving {} peers. # peers = '{}'", numberOfLeavingPeers,
+				peers.size() + 1);
 		for (int i = 0; i < numberOfLeavingPeers; i++) {
 			KeyLock<Number160>.RefCounterLock lock = null;
 			PeerDHT peer = null;
@@ -263,7 +287,8 @@ public class LocalNetworkSimulator {
 			peers.remove(peer);
 			peer.shutdown().awaitUninterruptibly();
 			keyLock.unlock(lock);
-			logger.trace("Peer leaved the network. peer id = '{}'", peer.peerID());
+			logger.trace("Peer leaved the network. peer id = '{}'",
+					peer.peerID());
 		}
 	}
 
@@ -291,8 +316,9 @@ public class LocalNetworkSimulator {
 		}
 		try {
 			// load latest string
-			FutureGet futureGet = peer.get(key.locationKey()).contentKey(key.contentKey())
-					.domainKey(key.domainKey()).getLatest().start();
+			FutureGet futureGet = peer.get(key.locationKey())
+					.contentKey(key.contentKey()).domainKey(key.domainKey())
+					.getLatest().start();
 			futureGet.awaitUninterruptibly();
 
 			return (Map<String, Integer>) futureGet.data().object();
