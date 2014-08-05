@@ -37,7 +37,6 @@ public final class Configuration {
 	private final String CHURN_STRATEGY_NAME = "churnStrategyName";
 
 	// put settings
-	private final String NUM_KEYS = "numKeys";
 	private final String NUM_PUTS = "numPuts";
 	private final String MAX_VERSIONS = "maxVersions";
 	private final String PUT_CONCURRENCY_FACTOR = "putConcurrencyFactor";
@@ -72,7 +71,6 @@ public final class Configuration {
 	private final String churnStrategyName;
 
 	// put settings
-	private final int numKeys;
 	private final int numPuts;
 	private final int maxVersions;
 	private final int putConcurrencyFactor;
@@ -125,7 +123,6 @@ public final class Configuration {
 		this.churnStrategyName = properties.getProperty(CHURN_STRATEGY_NAME);
 
 		// load put settings
-		this.numKeys = Integer.parseInt(properties.getProperty(NUM_KEYS));
 		this.numPuts = Integer.parseInt(properties.getProperty(NUM_PUTS));
 		this.maxVersions = Integer.parseInt(properties.getProperty(MAX_VERSIONS));
 		this.putConcurrencyFactor = Integer.parseInt(properties.getProperty(PUT_CONCURRENCY_FACTOR));
@@ -256,15 +253,6 @@ public final class Configuration {
 	 */
 	public int getBootstrapPort() {
 		return bootstrapPort;
-	}
-
-	/**
-	 * Get value for NUM_KEYS from configuration.
-	 * 
-	 * @return number of different keys which will do puts
-	 */
-	public int getNumKeys() {
-		return numKeys;
 	}
 
 	/**
