@@ -41,13 +41,9 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
-	private int versionForkAfterPut = 0;
-	private int versionDelay = 0;
-	private int versionForkAfterGetMerge = 0;
-
-	public PesimisticPutStrategy(String id, Number480 key,
+	public PesimisticPutStrategy(String id, Number480 key, Result result,
 			Configuration configuration) {
-		super(id, key);
+		super(id, key, result);
 		this.configuration = configuration;
 	}
 
@@ -92,9 +88,9 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					memorizedVersionKey = result.element1();
 				}
 
-				putCounter++;
+				increaseWriteCounter();
 
-				logger.debug("Put confirmed. put counter = '{}'", putCounter);
+				logger.debug("Put confirmed. write counter = '{}'", getWriteCounter());
 
 				break;
 			} else {
@@ -110,7 +106,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
-				versionForkAfterPut++;
+				increaseForkAfterPutCounter();
 			}
 		}
 	}
@@ -146,7 +142,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					|| isDelayed(versionTree)) {
 				logger.warn("Detected a version delay. versions = '{}'",
 						Utils.getVersionKeysFromMap(latestVersions));
-				versionDelay++;
+				increaseDelayCounter();
 				Utils.waitAMoment();
 				continue;
 			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
@@ -154,7 +150,6 @@ public final class PesimisticPutStrategy extends PutStrategy {
 						"Got a version fork. Merging. versions = '{}'  latestVersions = '{}'",
 						Utils.getVersionKeysFromPeers(rawData),
 						Utils.getVersionKeysFromMap(latestVersions));
-				versionForkAfterGetMerge++;
 				return updateMerge(latestVersions);
 			} else {
 				Map<String, Integer> value;
@@ -240,6 +235,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 		Number160 versionKey = Utils.generateVersionKey(sortedMap.lastEntry()
 				.getKey().versionKey(), mergedValue.toString());
 
+		increaseMergeCounter();
+
 		return new Pair<Data, Number160>(data, versionKey);
 	}
 
@@ -266,15 +263,6 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			}
 		}
 		return false;
-	}
-
-	@Override
-	public void printResults() {
-		logger.debug("id = '{}', version delays = '{}'", id, versionDelay);
-		logger.debug("id = '{}', version forks after put = '{}'", id,
-				versionForkAfterPut);
-		logger.debug("id = '{}', version forks after get and merge = '{}'", id,
-				versionForkAfterGetMerge);
 	}
 
 }

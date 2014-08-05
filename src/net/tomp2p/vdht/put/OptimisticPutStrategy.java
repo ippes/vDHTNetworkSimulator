@@ -36,14 +36,9 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
-	private int versionForkAfterPut = 0;
-	private int versionDelay = 0;
-	private int versionForkAfterGetWait = 0;
-	private int versionForkAfterGetMerge = 0;
-
-	public OptimisticPutStrategy(String id, Number480 key,
+	public OptimisticPutStrategy(String id, Number480 key, Result result,
 			Configuration configuration) {
-		super(id, key);
+		super(id, key, result);
 		this.configuration = configuration;
 	}
 
@@ -67,8 +62,10 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					.start();
 			futurePut.awaitUninterruptibly();
 
-			logger.debug("Put. value = '{}', putCounter = '{}' version = '{}'", result
-					.element0().object(), putCounter, result.element1().timestamp());
+			logger.debug(
+					"Put. value = '{}', write ounter = '{}' version = '{}'",
+					result.element0().object(), getWriteCounter(), result
+							.element1().timestamp());
 
 			// check for any version forks
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
@@ -86,11 +83,10 @@ public final class OptimisticPutStrategy extends PutStrategy {
 							.contentKey(key.contentKey())
 							.versionKey(result.element1()).start();
 					futureRemove.awaitUninterruptibly();
-					System.err.println("hallo");
 				} while (futureRemove.isSuccess());
 
-				putCounter--;
-				versionForkAfterPut++;
+				decreaseWriteCounter();
+				increaseForkAfterPutCounter();
 
 				logger.warn("Version fork after put detected. Retry put.");
 			}
@@ -128,19 +124,18 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				logger.warn(
 						"Got a version fork. Timeout expired. Merging. latestVersions = '{}'",
 						Utils.getVersionNumbersFromMap(latestVersions));
-				versionForkAfterGetWait++;
 				return updateMerge(latestVersions);
 			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
 				logger.warn("Got a version fork. Waiting. versions = '{}'",
 						Utils.getVersionNumbersFromMap(latestVersions));
-				versionForkAfterGetMerge++;
+				increaseForkAfterGetCounter();
 				Utils.waitAMoment();
 				continue;
 			} else if (Utils.hasVersionDelay(latestVersions, versionTree)
 					|| isDelayed(versionTree)) {
 				logger.warn("Detected a version delay. versions = '{}'",
 						Utils.getVersionNumbersFromMap(latestVersions));
-				versionDelay++;
+				increaseDelayCounter();
 				Utils.waitAMoment();
 				continue;
 			} else {
@@ -165,7 +160,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				} else {
 					value.put(id, 1);
 				}
-				putCounter++;
+				increaseWriteCounter();
 
 				// create a new updated wrapper
 				Data data = new Data(value).addBasedOn(basedOnKey);
@@ -208,8 +203,6 @@ public final class OptimisticPutStrategy extends PutStrategy {
 			}
 		}
 
-		putCounter++;
-
 		// create new data object
 		Data data = new Data(mergedValue);
 		// add all version keys as based on keys
@@ -219,6 +212,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 		// generate a new version key
 		Number160 versionKey = Utils.generateVersionKey(sortedMap.lastEntry()
 				.getKey().versionKey(), mergedValue.toString());
+
+		increaseMergeCounter();
 
 		return new Pair<Data, Number160>(data, versionKey);
 	}
@@ -246,16 +241,6 @@ public final class OptimisticPutStrategy extends PutStrategy {
 			}
 		}
 		return false;
-	}
-
-	@Override
-	public void printResults() {
-		logger.debug("version delays = '{}'", versionDelay);
-		logger.debug("version forks after put = '{}'", versionForkAfterPut);
-		logger.debug("version forks after get and merge = '{}'",
-				versionForkAfterGetMerge);
-		logger.debug("version forks after get and wait = '{}'",
-				versionForkAfterGetWait);
 	}
 
 }

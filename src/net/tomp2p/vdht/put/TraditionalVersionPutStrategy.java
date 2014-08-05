@@ -35,11 +35,12 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 
 	private Number160 basedOnKey = Number160.ZERO;
 
-	public TraditionalVersionPutStrategy(String id, Number480 key, Configuration configuration) {
-		super(id, key);
+	public TraditionalVersionPutStrategy(String id, Number480 key, Result result, Configuration configuration) {
+		super(id, key, result);
 		this.configuration = configuration;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// fetch from the network
@@ -84,15 +85,9 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 				.domainKey(key.domainKey()).versionKey(versionKey).start();
 		futurePut.awaitUninterruptibly();
 
-		// increase put counter
-		putCounter++;
+		increaseWriteCounter();
 
 		logger.debug("Put. value = '{}' key ='{}' id = '{}'", value, key, id);
-	}
-
-	@Override
-	public void printResults() {
-		// nothing special to print
 	}
 
 }

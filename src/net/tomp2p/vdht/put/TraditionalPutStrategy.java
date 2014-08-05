@@ -27,11 +27,12 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 	private final Configuration configuration;
 
-	public TraditionalPutStrategy(String id, Number480 key, Configuration configuration) {
-		super(id, key);
+	public TraditionalPutStrategy(String id, Number480 key, Result result, Configuration configuration) {
+		super(id, key, result);
 		this.configuration = configuration;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// fetch from the network
@@ -64,14 +65,9 @@ public final class TraditionalPutStrategy extends PutStrategy {
 				.domainKey(key.domainKey()).start();
 		futurePut.awaitUninterruptibly();
 
-		putCounter++;
+		increaseWriteCounter();
 
 		logger.debug("Executed put. value = '{}' key ='{}' id = '{}'", value, key, id);
-	}
-
-	@Override
-	public void printResults() {
-		// no other statistics to print
 	}
 
 }
