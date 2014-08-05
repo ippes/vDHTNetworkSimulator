@@ -6,31 +6,31 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import net.tomp2p.peers.Number480;
-import net.tomp2p.vdht.Configuration;
 import net.tomp2p.vdht.LocalNetworkSimulator;
 
 public final class PutCoordinator {
 
 	private final Number480 key = new Number480(new Random());
 
-	private final int putId;
-	private final Configuration configuration;
 	private final LocalNetworkSimulator simulator;
 	private final ScheduledExecutorService scheduler;
 	private final PutExecutor[] putExecutors;
+	private final Result result;
 
-	public PutCoordinator(int putId, Configuration configuration, LocalNetworkSimulator simulator) {
-		this.putId = putId;
-		this.configuration = configuration;
+	public PutCoordinator(LocalNetworkSimulator simulator) {
 		this.simulator = simulator;
-		this.scheduler = Executors.newScheduledThreadPool(configuration.getPutConcurrencyFactor());
-		this.putExecutors = new PutExecutor[configuration.getPutConcurrencyFactor()];
+		this.scheduler = Executors.newScheduledThreadPool(simulator
+				.getConfiguration().getPutConcurrencyFactor());
+		this.putExecutors = new PutExecutor[simulator.getConfiguration()
+				.getPutConcurrencyFactor()];
+		this.result = new Result(key);
 	}
 
 	public void start() {
 		for (int i = 0; i < putExecutors.length; i++) {
 			String id = String.valueOf((char) ('a' + i));
-			PutExecutor putExecutor = new PutExecutor(putId, id, key, configuration, scheduler, simulator);
+			PutExecutor putExecutor = new PutExecutor(id, key, result,
+					scheduler, simulator);
 			putExecutor.start();
 			putExecutors[i] = putExecutor;
 		}
@@ -51,19 +51,13 @@ public final class PutCoordinator {
 		return shutdown;
 	}
 
-	public Result loadResults() {
-		Result result = new Result(key);
-
+	public void loadResults() {
 		// load latest version
 		Map<String, Integer> latestVersion = simulator.get(key);
 		result.setLatestVersion(latestVersion);
+	}
 
-		// get number of writes
-		for (int i = 0; i < putExecutors.length; i++) {
-			int writes = putExecutors[i].getPutStrategy().getPutCounter();
-			result.putWriteCounter(putExecutors[i].getId(), writes);
-		}
-
+	public Result getResult() {
 		return result;
 	}
 

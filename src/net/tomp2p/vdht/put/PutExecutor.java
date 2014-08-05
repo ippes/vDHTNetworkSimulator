@@ -20,43 +20,49 @@ public final class PutExecutor implements Runnable {
 	private boolean shutdown = false;
 	private boolean stopped = false;
 
-	private final int putId;
+	private long startTime;
+
 	private final String id;
+	private final Result result;
 	private final Configuration configuration;
 	private final ScheduledExecutorService scheduler;
 	private final PutStrategy putStrategy;
 	private final LocalNetworkSimulator simulator;
 
-	public PutExecutor(int putId, String id, Number480 key, Configuration configuration,
+	public PutExecutor(String id, Number480 key, Result result,
 			ScheduledExecutorService scheduler, LocalNetworkSimulator simulator) {
-		this.putId = putId;
 		this.id = id;
-		this.configuration = configuration;
+		this.result = result;
+		this.configuration = simulator.getConfiguration();
 		this.scheduler = scheduler;
 		this.simulator = simulator;
 
-		String putApproach = configuration.getPutStrategyName();
-		switch (putApproach) {
-			case TraditionalPutStrategy.PUT_STRATEGY_NAME:
-				putStrategy = new TraditionalPutStrategy(id, key, configuration);
-				break;
-			case TraditionalVersionPutStrategy.PUT_STRATEGY_NAME:
-				putStrategy = new TraditionalVersionPutStrategy(id, key, configuration);
-				break;
-			case OptimisticPutStrategy.PUT_STRATEGY_NAME:
-				putStrategy = new OptimisticPutStrategy(id, key, configuration);
-				break;
-			case PesimisticPutStrategy.PUT_STRATEGY_NAME:
-				putStrategy = new PesimisticPutStrategy(id, key, configuration);
-				break;
-			default:
-				putStrategy = new OptimisticPutStrategy(id, key, configuration);
-				logger.warn("An unknown put approach '{}' was given. Selected '{}' as default put approach.",
-						putApproach, OptimisticPutStrategy.PUT_STRATEGY_NAME);
+		String putStrategyName = configuration.getPutStrategyName();
+		switch (putStrategyName) {
+		case TraditionalPutStrategy.PUT_STRATEGY_NAME:
+			putStrategy = new TraditionalPutStrategy(id, key, result,
+					configuration);
+			break;
+		case TraditionalVersionPutStrategy.PUT_STRATEGY_NAME:
+			putStrategy = new TraditionalVersionPutStrategy(id, key, result,
+					configuration);
+			break;
+		case OptimisticPutStrategy.PUT_STRATEGY_NAME:
+			putStrategy = new OptimisticPutStrategy(id, key, result,
+					configuration);
+			break;
+		case PesimisticPutStrategy.PUT_STRATEGY_NAME:
+			putStrategy = new PesimisticPutStrategy(id, key, result,
+					configuration);
+			break;
+		default:
+			throw new IllegalArgumentException("Unkown put strategy name '"
+					+ putStrategyName + "'");
 		}
 	}
 
 	public void start() {
+		startTime = System.currentTimeMillis();
 		scheduler.schedule(this, delay(), TimeUnit.MILLISECONDS);
 	}
 
@@ -66,7 +72,7 @@ public final class PutExecutor implements Runnable {
 
 	@Override
 	public void run() {
-		Thread.currentThread().setName("vDHT - Put " + putId + "-" + id);
+		Thread.currentThread().setName("vDHT - Put " + id);
 		try {
 			simulator.put(putStrategy);
 		} catch (Exception e) {
@@ -74,10 +80,13 @@ public final class PutExecutor implements Runnable {
 				logger.error("Caught an unexpected exception.", e);
 			}
 		} finally {
-			if (shutdown) {
-				stopped = true;
-				return;
-			} else if (putStrategy.getPutCounter() == configuration.getNumPuts()) {
+			if (shutdown
+					|| putStrategy.getWriteCounter() == configuration
+							.getNumPuts()) {
+				// store runtime
+				long runtime = System.currentTimeMillis() - startTime;
+				result.storeRuntime(id, runtime);
+
 				shutdown = true;
 				stopped = true;
 				return;

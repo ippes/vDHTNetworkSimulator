@@ -13,19 +13,42 @@ public abstract class PutStrategy {
 	protected final String id;
 	protected final Number480 key;
 
-	protected int putCounter = 0;
+	private final Result result;
 
-	public PutStrategy(String id, Number480 key) {
+	public PutStrategy(String id, Number480 key, Result result) {
 		this.id = id;
 		this.key = key;
+		this.result = result;
 	}
 
 	public abstract void getUpdateAndPut(PeerDHT peer) throws Exception;
 
-	public abstract void printResults();
+	public void increaseWriteCounter() {
+		result.increaseWriteCounter(id);
+	}
 
-	public int getPutCounter() {
-		return putCounter;
+	public void increaseMergeCounter() {
+		result.increaseMergeCounter(id);
+	}
+
+	public void increaseDelayCounter() {
+		result.increaseDelayCounter(id);
+	}
+
+	public void increaseForkAfterGetCounter() {
+		result.increaseForkAfterGetCounter(id);
+	}
+
+	public void increaseForkAfterPutCounter() {
+		result.increaseForkAfterPutCounter(id);
+	}
+
+	public void decreaseWriteCounter() {
+		result.decreaseWriteCounter(id);
+	}
+
+	public int getWriteCounter() {
+		return result.getWriteCounter(id);
 	}
 
 }
