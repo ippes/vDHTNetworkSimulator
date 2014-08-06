@@ -58,6 +58,11 @@ public class LocalNetworkSimulator {
 		return configuration;
 	}
 
+	// TODO remove this
+	public List<PeerDHT> getPeers() {
+		return peers;
+	}
+
 	public void createNetwork() throws IOException {
 		// initially create peers within given boundaries
 		int numPeers = (configuration.getNumPeersMax() + configuration
@@ -144,7 +149,7 @@ public class LocalNetworkSimulator {
 		// reduce TCP number of short-lived TCP connections to avoid timeouts
 		ChannelClientConfiguration channelConfig = PeerBuilder
 				.createDefaultChannelClientConfiguration();
-		channelConfig.maxPermitsTCP(10);
+		channelConfig.maxPermitsTCP(12);
 
 		return new PeerBuilderDHT(new PeerBuilder(peerId)
 				.ports(configuration.getPort()).peerMap(peerMap)

@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>vDHTNetworkSimulator</groupId>
 	<artifactId>vDHTNetworkSimulator</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0-SNAPSHOT</version>
 	<build>
 		<sourceDirectory>vDHTSimulation/src</sourceDirectory>
 		<plugins>
@@ -21,7 +21,7 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.7.5</version>
+			<version>1.7.6</version>
 		</dependency>
 
 		<dependency>

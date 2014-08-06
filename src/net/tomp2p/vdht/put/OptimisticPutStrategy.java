@@ -12,6 +12,7 @@ import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FuturePut;
 import net.tomp2p.dht.FutureRemove;
 import net.tomp2p.dht.PeerDHT;
+import net.tomp2p.p2p.RequestP2PConfiguration;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.peers.Number640;
@@ -56,14 +57,18 @@ public final class OptimisticPutStrategy extends PutStrategy {
 			}
 
 			// put updated version into network
-			FuturePut futurePut = peer.put(key.locationKey())
+			FuturePut futurePut = peer
+					.put(key.locationKey())
 					.data(key.contentKey(), updatedData)
-					.domainKey(key.domainKey()).versionKey(result.element1())
-					.start();
+					.domainKey(key.domainKey())
+					.versionKey(result.element1())
+					.requestP2PConfiguration(
+							new RequestP2PConfiguration(configuration
+									.getReplicationFactor(), 5, 0)).start();
 			futurePut.awaitUninterruptibly();
 
 			logger.debug(
-					"Put. value = '{}', write ounter = '{}' version = '{}'",
+					"Put. value = '{}', write counter = '{}' version = '{}'",
 					result.element0().object(), getWriteCounter(), result
 							.element1().timestamp());
 
@@ -78,10 +83,17 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				// reject put
 				FutureRemove futureRemove;
 				do {
-					futureRemove = peer.remove(key.locationKey())
+					futureRemove = peer
+							.remove(key.locationKey())
 							.domainKey(key.domainKey())
 							.contentKey(key.contentKey())
-							.versionKey(result.element1()).start();
+							.versionKey(result.element1())
+							.requestP2PConfiguration(
+									new RequestP2PConfiguration(configuration
+											.getReplicationFactor(), 5,
+											configuration
+													.getReplicationFactor()))
+							.start();
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
@@ -94,6 +106,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 	}
 
 	private long time = 0;
+	private boolean firstTime = true;
 
 	@SuppressWarnings("unchecked")
 	private Pair<Data, Number160> getAndUpdate(PeerDHT peer)
@@ -106,6 +119,14 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					.getLatest().withDigest().start();
 			futureGet.awaitUninterruptibly();
 
+			if (futureGet.isFailed()) {
+				if (firstTime) {
+					firstTime = false;
+				} else {
+					logger.error(futureGet.failedReason());
+				}
+			}
+
 			// get raw result from all contacted peers
 			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet
 					.rawData();
@@ -116,8 +137,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					.buildVersionTree(rawDigest);
 
 			// join all versions in one map
-			Map<Number640, Data> latestVersions = Utils
-					.getLatestVersions(rawData);
+			Map<Number640, Data> latestVersions = Utils.getLatestVersions(
+					rawData, id);
 
 			if (Utils.hasVersionForkAfterGet(latestVersions)
 					&& time + 3000 < System.currentTimeMillis()) {

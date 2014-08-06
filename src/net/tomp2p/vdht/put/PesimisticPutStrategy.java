@@ -12,6 +12,7 @@ import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FuturePut;
 import net.tomp2p.dht.FutureRemove;
 import net.tomp2p.dht.PeerDHT;
+import net.tomp2p.p2p.RequestP2PConfiguration;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.peers.Number640;
@@ -67,7 +68,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					.start();
 			futurePut.awaitUninterruptibly();
 
-			logger.debug("Put. value = '{}'", result.element0().object());
+			logger.debug("Put. value = '{}' version = '{}'", result.element0()
+					.object(), result.element1().timestamp());
 
 			// check for any version forks
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
@@ -90,7 +92,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				increaseWriteCounter();
 
-				logger.debug("Put confirmed. write counter = '{}'", getWriteCounter());
+				logger.debug("Put confirmed. write counter = '{}'",
+						getWriteCounter());
 
 				break;
 			} else {
@@ -99,10 +102,15 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				// reject put
 				FutureRemove futureRemove;
 				do {
-					futureRemove = peer.remove(key.locationKey())
+					futureRemove = peer
+							.remove(key.locationKey())
 							.domainKey(key.domainKey())
 							.contentKey(key.contentKey())
-							.versionKey(result.element1()).start();
+							.versionKey(result.element1())
+							.requestP2PConfiguration(
+									new RequestP2PConfiguration(configuration
+											.getReplicationFactor() + 2, 5, 2))
+							.start();
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
@@ -131,8 +139,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					.buildVersionTree(rawDigest);
 
 			// join all versions in one map
-			Map<Number640, Data> latestVersions = Utils
-					.getLatestVersions(rawData);
+			Map<Number640, Data> latestVersions = Utils.getLatestVersions(
+					rawData, id);
 
 			// logger.debug("Got. latest versions = '{}' version history = '{}'",
 			// Utils.getVersionNumbersFromMap(latestVersions),
