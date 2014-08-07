@@ -27,17 +27,20 @@ public class Main {
 		for (File configFile : configFiles) {
 			try {
 				logger.info("========================================================");
-				logger.info("Running simulation. config file = '{}'", configFile.getName());
+				logger.info("Running simulation. config file = '{}'",
+						configFile.getName());
 
 				// initialize simulation
 				Configuration configuration;
 				try {
 					configuration = new Configuration(configFile);
 				} catch (IOException e) {
-					logger.error("Couldn't read given config file = '{}'", configFile.getName());
+					logger.error("Couldn't read given config file = '{}'",
+							configFile.getName());
 					continue;
 				}
-				LocalNetworkSimulator network = new LocalNetworkSimulator(configuration);
+				LocalNetworkSimulator network = new LocalNetworkSimulator(
+						configuration);
 
 				logger.info("Setting up the network simulator.");
 				network.createNetwork();
@@ -48,16 +51,22 @@ public class Main {
 				logger.info("Start putting data.");
 				network.startPutting();
 
-				int runtimeInMilliseconds = configuration.getRuntimeInMilliseconds();
+				int runtimeInMilliseconds = configuration
+						.getRuntimeInMilliseconds();
+				int numPuts = configuration.getNumPuts();
 				// run according given runtime
-				if (runtimeInMilliseconds > 0) {
-					logger.info("Running simulation for {} milliseconds.", runtimeInMilliseconds);
+				if (runtimeInMilliseconds > 0 && numPuts < 0) {
+					logger.info("Running simulation for {} milliseconds.",
+							runtimeInMilliseconds);
 					Thread.sleep(runtimeInMilliseconds);
-				} else {
+				} else if (runtimeInMilliseconds < 0 && numPuts > 0) {
 					// run till simulation stops
 					while (network.isPuttingRunning()) {
 						Thread.sleep(500);
 					}
+				} else {
+					throw new IllegalArgumentException(
+							"You have to give either a runtime or version writes limit.");
 				}
 
 				network.shutDownChurn();
@@ -91,8 +100,8 @@ public class Main {
 					configFiles.add(file);
 				}
 			}
-		}else {
-			for (String configFileName: args) {
+		} else {
+			for (String configFileName : args) {
 				configFiles.add(new File(configFileName));
 			}
 		}
