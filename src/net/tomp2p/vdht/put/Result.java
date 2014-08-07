@@ -19,6 +19,7 @@ public class Result {
 	private final Map<String, Integer> delays = new HashMap<String, Integer>();
 	private final Map<String, Integer> forksAfterPut = new HashMap<String, Integer>();
 	private final Map<String, Integer> forksAfterGet = new HashMap<String, Integer>();
+	private final Map<String, Integer> consistencyBreaks = new HashMap<String, Integer>();
 	private final Map<String, Long> runtimes = new HashMap<String, Long>();
 
 	private final Number480 key;
@@ -85,6 +86,15 @@ public class Result {
 		}
 	}
 
+
+	public void increaseConsistencyBreak(String id) {
+		if (consistencyBreaks.containsKey(id)) {
+			consistencyBreaks.put(id, forksAfterPut.get(id) + 1);
+		} else {
+			consistencyBreaks.put(id, 1);
+		}
+	}
+
 	public synchronized void storeRuntime(String id, long runtime) {
 		runtimes.put(id, runtime);
 	}
@@ -141,18 +151,27 @@ public class Result {
 		return counter;
 	}
 
+	public int countConsistencyBreaks() {
+		int counter = 0;
+		for (int consistencyBreaks : consistencyBreaks.values()) {
+			counter += consistencyBreaks;
+		}
+		return counter;
+	}
+
 	public long getLongestRuntime() {
 		return Collections.max(new ArrayList<Long>(runtimes.values()));
 	}
 
 	public void printResults() {
-		logger.debug("latest version  = '{}'", latestVersion);
-		logger.debug("version writes  = '{}'", writes);
-		logger.debug("merges          = '{}'", merges);
-		logger.debug("merges          = '{}'", delays);
-		logger.debug("forks after get = '{}'", forksAfterGet);
-		logger.debug("forks after put = '{}'", forksAfterPut);
-		logger.debug("runtimes        = '{}'", runtimes);
+		logger.debug("latest version     = '{}'", latestVersion);
+		logger.debug("version writes     = '{}'", writes);
+		logger.debug("merges             = '{}'", merges);
+		logger.debug("merges             = '{}'", delays);
+		logger.debug("forks after get    = '{}'", forksAfterGet);
+		logger.debug("forks after put    = '{}'", forksAfterPut);
+		logger.debug("consistency breaks = '{}'", consistencyBreaks);
+		logger.debug("runtimes           = '{}'", runtimes);
 		// logger.debug("key             = '{}'", key);
 	}
 }

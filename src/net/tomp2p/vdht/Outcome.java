@@ -88,6 +88,8 @@ public final class Outcome {
 				fileWriter.append(',');
 				fileWriter.append("forksAfterPut");
 				fileWriter.append(',');
+				fileWriter.append("consistencyBreaks");
+				fileWriter.append(',');
 				fileWriter.append("elapsedTime");
 				fileWriter.append('\n');
 
@@ -168,6 +170,8 @@ public final class Outcome {
 			fileWriter.append(Integer.toString(result.countForksAfterGet()));
 			fileWriter.append(',');
 			fileWriter.append(Integer.toString(result.countForksAfterPut()));
+			fileWriter.append(',');
+			fileWriter.append(Integer.toString(result.countConsistencyBreaks()));
 			fileWriter.append(',');
 			fileWriter.append(Long.toString(result.getLongestRuntime()));
 			fileWriter.append('\n');
