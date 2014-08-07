@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -72,9 +73,10 @@ public class Utils {
 								peerAddress, PutStatus.values()[result
 										.getValue().intValue()]);
 					} else {
-						logger.error(
-								"Received unkown put status as result. peerAddress = '{}' putStatus = '{}'",
-								peerAddress, result.getValue().intValue());
+						// ignore this peer
+						//logger.warn(
+						//		"Received unkown put status as result. peerAddress = '{}' putStatus = '{}'",
+						//		peerAddress, result.getValue().intValue());
 					}
 				}
 			}
@@ -169,10 +171,10 @@ public class Utils {
 			Map<Number640, Data> dataMap = peerDataMap.get(peerAddress);
 			if (dataMap == null) {
 				// ignore this peer
-				logger.warn("Received null. responder = '{}'", peerAddress);
+				//logger.warn("Received null. responder = '{}'", peerAddress);
 			} else if (dataMap.isEmpty()) {
 				// ignore this peer
-				logger.warn("Received empty map. responder = '{}'", peerAddress);
+				//logger.warn("Received empty map. responder = '{}'", peerAddress);
 			} else {
 				NavigableMap<Number640, Data> sortedDataMap = new TreeMap<Number640, Data>(
 						dataMap);
@@ -184,10 +186,12 @@ public class Utils {
 		return latestVersions;
 	}
 
+	private static Random random = new Random();
+
 	public static void waitAMoment() {
 		while (true) {
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(500 + random.nextInt(1000));
 				break;
 			} catch (InterruptedException e) {
 				logger.error("Got interupted.", e);
