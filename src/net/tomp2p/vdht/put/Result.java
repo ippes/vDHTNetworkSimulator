@@ -86,7 +86,6 @@ public class Result {
 		}
 	}
 
-
 	public void increaseConsistencyBreak(String id) {
 		if (consistencyBreaks.containsKey(id)) {
 			consistencyBreaks.put(id, forksAfterPut.get(id) + 1);
@@ -100,7 +99,11 @@ public class Result {
 	}
 
 	public int getWriteCounter(String id) {
-		return writes.get(id);
+		if (writes.containsKey(id)) {
+			return writes.get(id);
+		} else {
+			return 0;
+		}
 	}
 
 	public int countWrites() {
@@ -167,7 +170,7 @@ public class Result {
 		logger.debug("latest version     = '{}'", latestVersion);
 		logger.debug("version writes     = '{}'", writes);
 		logger.debug("merges             = '{}'", merges);
-		logger.debug("merges             = '{}'", delays);
+		logger.debug("delays             = '{}'", delays);
 		logger.debug("forks after get    = '{}'", forksAfterGet);
 		logger.debug("forks after put    = '{}'", forksAfterPut);
 		logger.debug("consistency breaks = '{}'", consistencyBreaks);

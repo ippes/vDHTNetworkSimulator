@@ -192,15 +192,14 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			if (Utils.hasVersionDelay(latestVersions, versionTree)
 					|| isDelayed(versionTree)) {
 				logger.warn("Detected a version delay. versions = '{}'",
-						Utils.getVersionKeysFromMap(latestVersions));
+						Utils.getVersionNumbersFromMap(latestVersions));
 				increaseDelayCounter();
 				Utils.waitAMoment();
 				continue;
 			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
 				logger.warn(
-						"Got a version fork. Merging. versions = '{}'  latestVersions = '{}'",
-						Utils.getVersionKeysFromPeers(rawData),
-						Utils.getVersionKeysFromMap(latestVersions));
+						"Got a version fork. Merging. versions = '{}'",
+						Utils.getVersionNumbersFromMap(latestVersions));
 				return updateMerge(latestVersions);
 			} else {
 				Map<String, Integer> value;

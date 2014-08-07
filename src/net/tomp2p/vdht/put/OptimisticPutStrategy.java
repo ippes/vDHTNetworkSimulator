@@ -66,8 +66,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					.versionKey(result.element1())
 					.requestP2PConfiguration(
 							new RequestP2PConfiguration(configuration
-									.getReplicationFactor(), 5, 0))
-					.start();
+									.getReplicationFactor(), 5, 0)).start();
 			futurePut.awaitUninterruptibly();
 
 			logger.debug(
@@ -84,6 +83,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				firstTime = false;
 				break;
 			} else {
+				logger.warn("Version fork after put detected. Rejecting and retrying put.");
+
 				// reject put
 				FutureRemove futureRemove;
 				do {
@@ -94,16 +95,15 @@ public final class OptimisticPutStrategy extends PutStrategy {
 							.versionKey(result.element1())
 							.requestP2PConfiguration(
 									new RequestP2PConfiguration(configuration
-											.getReplicationFactor(), 0, configuration
-											.getReplicationFactor()))
+											.getReplicationFactor(), 0,
+											configuration
+													.getReplicationFactor()))
 							.start();
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
 				decreaseWriteCounter();
 				increaseForkAfterPutCounter();
-
-				logger.warn("Version fork after put detected. Retry put.");
 			}
 		}
 	}

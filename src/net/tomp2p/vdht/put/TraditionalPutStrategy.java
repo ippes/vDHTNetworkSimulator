@@ -14,20 +14,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A putting strategy which simply overwrites versions with the newer ones. The strategy doesn't use any
- * version keys.
+ * A putting strategy which simply overwrites versions with the newer ones. The
+ * strategy doesn't use any version keys.
  * 
  * @author Seppi
  */
 public final class TraditionalPutStrategy extends PutStrategy {
 
-	private final Logger logger = LoggerFactory.getLogger(TraditionalPutStrategy.class);
+	private final Logger logger = LoggerFactory
+			.getLogger(TraditionalPutStrategy.class);
 
 	public static final String PUT_STRATEGY_NAME = "traditional";
 
 	private final Configuration configuration;
 
-	public TraditionalPutStrategy(String id, Number480 key, Result result, Configuration configuration) {
+	public TraditionalPutStrategy(String id, Number480 key, Result result,
+			Configuration configuration) {
 		super(id, key, result);
 		this.configuration = configuration;
 	}
@@ -36,8 +38,9 @@ public final class TraditionalPutStrategy extends PutStrategy {
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// fetch from the network
-		FutureGet futureGet = peer.get(key.locationKey()).domainKey(key.domainKey())
-				.contentKey(key.contentKey()).getLatest().start();
+		FutureGet futureGet = peer.get(key.locationKey())
+				.domainKey(key.domainKey()).contentKey(key.contentKey())
+				.getLatest().start();
 		futureGet.awaitUninterruptibly();
 
 		// get result and update it (append id)
@@ -47,12 +50,18 @@ public final class TraditionalPutStrategy extends PutStrategy {
 			// reset value
 			value = new HashMap<String, Integer>();
 			value.put(id, 1);
+			if (getWriteCounter() != 0) {
+				increaseConsistencyBreak();
+			}
 		} else {
 			value = (Map<String, Integer>) result.object();
 			if (value.containsKey(id)) {
 				value.put(id, value.get(id) + 1);
 			} else {
 				value.put(id, 1);
+				if (getWriteCounter() != 0) {
+					increaseConsistencyBreak();
+				}
 			}
 		}
 		Data data = new Data(value);
@@ -61,13 +70,15 @@ public final class TraditionalPutStrategy extends PutStrategy {
 		}
 
 		// put updated version into network
-		FuturePut futurePut = peer.put(key.locationKey()).data(key.contentKey(), data)
-				.domainKey(key.domainKey()).start();
+		FuturePut futurePut = peer.put(key.locationKey())
+				.data(key.contentKey(), data).domainKey(key.domainKey())
+				.start();
 		futurePut.awaitUninterruptibly();
 
 		increaseWriteCounter();
 
-		logger.debug("Executed put. value = '{}' key ='{}' id = '{}'", value, key, id);
+		logger.debug("Executed put. value = '{}' write counter = '{}'", value,
+				getWriteCounter());
 	}
 
 }
