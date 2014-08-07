@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -41,6 +42,9 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	private final Configuration configuration;
 
 	private Number160 memorizedVersionKey = Number160.ZERO;
+	private boolean firstTime = true;
+	private int waitTime = 0;
+	private Random random = new Random();
 
 	public PesimisticPutStrategy(String id, Number480 key, Result result,
 			Configuration configuration) {
@@ -62,9 +66,14 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			updatedData.ttlSeconds(configuration.getPutPrepareTTLInSeconds());
 
 			// put updated version into network
-			FuturePut futurePut = peer.put(key.locationKey())
+			FuturePut futurePut = peer
+					.put(key.locationKey())
 					.data(key.contentKey(), updatedData)
-					.domainKey(key.domainKey()).versionKey(result.element1())
+					.domainKey(key.domainKey())
+					.versionKey(result.element1())
+					.requestP2PConfiguration(
+							new RequestP2PConfiguration(configuration
+									.getReplicationFactor(), 5, 0))
 					.start();
 			futurePut.awaitUninterruptibly();
 
@@ -79,10 +88,16 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				}
 
 				// confirm put
-				FuturePut futurePutConfirm = peer.put(key.locationKey())
+				FuturePut futurePutConfirm = peer
+						.put(key.locationKey())
 						.domainKey(key.domainKey())
 						.data(key.contentKey(), data)
-						.versionKey(result.element1()).putConfirm().start();
+						.versionKey(result.element1())
+						.putConfirm()
+						.requestP2PConfiguration(
+								new RequestP2PConfiguration(configuration
+										.getReplicationFactor(), 5, 0))
+						.start();
 				futurePutConfirm.awaitUninterruptibly();
 
 				// store version key
@@ -90,6 +105,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					memorizedVersionKey = result.element1();
 				}
 
+				firstTime = false;
+				waitTime = 0;
 				increaseWriteCounter();
 
 				logger.debug("Put confirmed. write counter = '{}'",
@@ -109,12 +126,26 @@ public final class PesimisticPutStrategy extends PutStrategy {
 							.versionKey(result.element1())
 							.requestP2PConfiguration(
 									new RequestP2PConfiguration(configuration
-											.getReplicationFactor() + 2, 5, 2))
+											.getReplicationFactor(), 5,
+											configuration
+													.getReplicationFactor()))
 							.start();
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
 				increaseForkAfterPutCounter();
+
+				// exponential back off waiting
+				while (true) {
+					try {
+						waitTime = waitTime + random.nextInt(1000);
+						Thread.sleep(waitTime);
+						break;
+					} catch (InterruptedException e) {
+						waitTime = 0;
+						logger.error("Got interupted.", e);
+					}
+				}
 			}
 		}
 	}
@@ -124,10 +155,26 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			throws IOException, ClassNotFoundException {
 		while (true) {
 			// fetch latest versions from the network, request also digest
-			FutureGet futureGet = peer.get(key.locationKey())
-					.domainKey(key.domainKey()).contentKey(key.contentKey())
-					.getLatest().withDigest().start();
-			futureGet.awaitUninterruptibly();
+			FutureGet futureGet;
+			int counter = 0;
+			while (true) {
+				futureGet = peer.get(key.locationKey())
+						.domainKey(key.domainKey())
+						.contentKey(key.contentKey()).getLatest().withDigest()
+						.start();
+				futureGet.awaitUninterruptibly();
+
+				if (counter > 4) {
+					logger.warn("Loading of data failed after {} tries.",
+							counter);
+					increaseConsistencyBreak();
+					break;
+				} else if (futureGet.isFailed() && !firstTime) {
+					logger.warn("Couldn't get data. try #{}", counter++);
+				} else {
+					break;
+				}
+			}
 
 			// get raw result from all contacted peers
 			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet
@@ -141,10 +188,6 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			// join all versions in one map
 			Map<Number640, Data> latestVersions = Utils.getLatestVersions(
 					rawData, id);
-
-			// logger.debug("Got. latest versions = '{}' version history = '{}'",
-			// Utils.getVersionNumbersFromMap(latestVersions),
-			// Utils.getVersionNumbersFromMap2(versionTree));
 
 			if (Utils.hasVersionDelay(latestVersions, versionTree)
 					|| isDelayed(versionTree)) {
@@ -177,10 +220,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				// update data
 				if (value.containsKey(id)) {
-					int counter = value.get(id);
-					value.put(id, counter + 1);
+					value.put(id, value.get(id) + 1);
 				} else {
-					logger.warn("Received an empty map.");
 					value.put(id, 1);
 				}
 

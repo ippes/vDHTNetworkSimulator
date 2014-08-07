@@ -35,6 +35,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	private final Configuration configuration;
 
+	private long time = 0;
+	private boolean firstTime = true;
 	private Number160 memorizedVersionKey = Number160.ZERO;
 
 	public OptimisticPutStrategy(String id, Number480 key, Result result,
@@ -64,7 +66,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					.versionKey(result.element1())
 					.requestP2PConfiguration(
 							new RequestP2PConfiguration(configuration
-									.getReplicationFactor(), 5, 0)).start();
+									.getReplicationFactor(), 5, 0))
+					.start();
 			futurePut.awaitUninterruptibly();
 
 			logger.debug(
@@ -78,6 +81,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				if (result.element1().compareTo(memorizedVersionKey) < 0) {
 					memorizedVersionKey = result.element1();
 				}
+				firstTime = false;
 				break;
 			} else {
 				// reject put
@@ -90,9 +94,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 							.versionKey(result.element1())
 							.requestP2PConfiguration(
 									new RequestP2PConfiguration(configuration
-											.getReplicationFactor(), 5,
-											configuration
-													.getReplicationFactor()))
+											.getReplicationFactor(), 0, configuration
+											.getReplicationFactor()))
 							.start();
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
@@ -105,25 +108,30 @@ public final class OptimisticPutStrategy extends PutStrategy {
 		}
 	}
 
-	private long time = 0;
-	private boolean firstTime = true;
-
 	@SuppressWarnings("unchecked")
 	private Pair<Data, Number160> getAndUpdate(PeerDHT peer)
 			throws IOException, ClassNotFoundException {
 		time = System.currentTimeMillis();
 		while (true) {
+			FutureGet futureGet;
 			// fetch latest versions from the network, request also digest
-			FutureGet futureGet = peer.get(key.locationKey())
-					.domainKey(key.domainKey()).contentKey(key.contentKey())
-					.getLatest().withDigest().start();
-			futureGet.awaitUninterruptibly();
+			int counter = 0;
+			while (true) {
+				futureGet = peer.get(key.locationKey())
+						.domainKey(key.domainKey())
+						.contentKey(key.contentKey()).getLatest().withDigest()
+						.start();
+				futureGet.awaitUninterruptibly();
 
-			if (futureGet.isFailed()) {
-				if (firstTime) {
-					firstTime = false;
+				if (counter > 4) {
+					logger.warn("Loading of data failed after {} tries.",
+							counter);
+					increaseConsistencyBreak();
+					break;
+				} else if (futureGet.isFailed() && !firstTime) {
+					logger.warn("Couldn't get data. try #{}", counter++);
 				} else {
-					logger.error(futureGet.failedReason());
+					break;
 				}
 			}
 
