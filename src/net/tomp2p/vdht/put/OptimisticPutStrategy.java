@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FuturePut;
@@ -26,6 +27,11 @@ import net.tomp2p.vdht.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Put strategy following the optimistic vDHT approach.
+ * 
+ * @author Seppi
+ */
 public final class OptimisticPutStrategy extends PutStrategy {
 
 	private final Logger logger = LoggerFactory
@@ -37,7 +43,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	private long time = 0;
 	private boolean firstTime = true;
-	private Number160 memorizedVersionKey = Number160.ZERO;
+	private Number160 cachedVersionKey = Number160.ZERO;
 
 	public OptimisticPutStrategy(String id, Number480 key, Result result,
 			Configuration configuration) {
@@ -47,7 +53,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
-		// repeat as long as a version can be confirmed
+		// repeat as long as a version has no delays nor forks
 		while (true) {
 			// get and update value from network
 			Pair<Data, Number160> result = getAndUpdate(peer);
@@ -64,6 +70,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					.data(key.contentKey(), updatedData)
 					.domainKey(key.domainKey())
 					.versionKey(result.element1())
+					// put has to address the whole replica set
 					.requestP2PConfiguration(
 							new RequestP2PConfiguration(configuration
 									.getReplicationFactor(), 5, 0)).start();
@@ -76,11 +83,10 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 			// check for any version forks
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
-				// store version key
-				if (result.element1().compareTo(memorizedVersionKey) < 0) {
-					memorizedVersionKey = result.element1();
+				// cache version key
+				if (result.element1().compareTo(cachedVersionKey) < 0) {
+					cachedVersionKey = result.element1();
 				}
-				firstTime = false;
 				break;
 			} else {
 				logger.warn("Version fork after put detected. Rejecting and retrying put.");
@@ -93,6 +99,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 							.domainKey(key.domainKey())
 							.contentKey(key.contentKey())
 							.versionKey(result.element1())
+							// request has to hit all replica plus neighbors
 							.requestP2PConfiguration(
 									new RequestP2PConfiguration(configuration
 											.getReplicationFactor(), 0,
@@ -102,6 +109,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
+				// protocol events
 				decreaseWriteCounter();
 				increaseForkAfterPutCounter();
 			}
@@ -111,7 +119,9 @@ public final class OptimisticPutStrategy extends PutStrategy {
 	@SuppressWarnings("unchecked")
 	private Pair<Data, Number160> getAndUpdate(PeerDHT peer)
 			throws IOException, ClassNotFoundException {
+		// cache current time for timeouts
 		time = System.currentTimeMillis();
+		// repeat till no version delays occur and forks get resolved
 		while (true) {
 			FutureGet futureGet;
 			// fetch latest versions from the network, request also digest
@@ -123,9 +133,10 @@ public final class OptimisticPutStrategy extends PutStrategy {
 						.start();
 				futureGet.awaitUninterruptibly();
 
-				if (counter > 4) {
+				if (counter > 2) {
 					logger.warn("Loading of data failed after {} tries.",
 							counter);
+					// report it
 					increaseConsistencyBreak();
 					break;
 				} else if (futureGet.isFailed() && !firstTime) {
@@ -148,7 +159,14 @@ public final class OptimisticPutStrategy extends PutStrategy {
 			Map<Number640, Data> latestVersions = Utils.getLatestVersions(
 					rawData, id);
 
-			if (Utils.hasVersionForkAfterGet(latestVersions)
+			if (Utils.hasVersionDelay(latestVersions, versionTree)
+					|| isDelayed(versionTree)) {
+				logger.warn("Detected a version delay. versions = '{}'",
+						Utils.getVersionNumbersFromMap(latestVersions));
+				increaseDelayCounter();
+				Utils.waitAMoment();
+				continue;
+			} else if (Utils.hasVersionForkAfterGet(latestVersions)
 					&& time + 3000 < System.currentTimeMillis()) {
 				logger.warn(
 						"Got a version fork. Timeout expired. Merging. latestVersions = '{}'",
@@ -158,13 +176,6 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				logger.warn("Got a version fork. Waiting. versions = '{}'",
 						Utils.getVersionNumbersFromMap(latestVersions));
 				increaseForkAfterGetCounter();
-				Utils.waitAMoment();
-				continue;
-			} else if (Utils.hasVersionDelay(latestVersions, versionTree)
-					|| isDelayed(versionTree)) {
-				logger.warn("Detected a version delay. versions = '{}'",
-						Utils.getVersionNumbersFromMap(latestVersions));
-				increaseDelayCounter();
 				Utils.waitAMoment();
 				continue;
 			} else {
@@ -195,7 +206,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				Data data = new Data(value).addBasedOn(basedOnKey);
 				// generate a new version key
 				Number160 versionKey = Utils.generateVersionKey(basedOnKey,
-						value.toString());
+						value.toString() + UUID.randomUUID());
 				return new Pair<Data, Number160>(data, versionKey);
 			}
 		}
@@ -261,11 +272,11 @@ public final class OptimisticPutStrategy extends PutStrategy {
 		// get latest version, and store it if newer
 		if (!versionTree.isEmpty()) {
 			Number160 latestVersion = versionTree.lastKey().versionKey();
-			if (latestVersion.compareTo(memorizedVersionKey) < 0) {
+			if (latestVersion.compareTo(cachedVersionKey) < 0) {
 				logger.warn(
 						"Detected a later version. memorizedVersion = '{}' latestVersion='{}'",
-						memorizedVersionKey, latestVersion);
-				memorizedVersionKey = latestVersion;
+						cachedVersionKey, latestVersion);
+				cachedVersionKey = latestVersion;
 				return true;
 			}
 		}
