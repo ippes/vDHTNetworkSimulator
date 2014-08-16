@@ -1,7 +1,9 @@
 package net.tomp2p.vdht;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,25 +50,37 @@ public class Main {
 				logger.info("Start simulating churn.");
 				network.startChurn();
 
-				logger.info("Start putting data.");
-				network.startPutting();
-
 				int runtimeInMilliseconds = configuration
 						.getRuntimeInMilliseconds();
 				int numPuts = configuration.getNumPuts();
 				// run according given runtime
 				if (runtimeInMilliseconds > 0 && numPuts < 0) {
+					logger.info("Start putting data.");
+					network.startPutting();
 					logger.info("Running simulation for {} milliseconds.",
 							runtimeInMilliseconds);
 					Thread.sleep(runtimeInMilliseconds);
 				} else if (runtimeInMilliseconds < 0 && numPuts > 0) {
+					logger.info("Start putting data.");
+					network.startPutting();
 					// run till simulation stops
 					while (network.isPuttingRunning()) {
 						Thread.sleep(500);
 					}
 				} else {
-					throw new IllegalArgumentException(
-							"You have to give either a runtime or version writes limit.");
+					logger.info("Type 'stop' to shutdown network.");
+					String input;
+					while (true) {
+						BufferedReader bufferRead = new BufferedReader(
+								new InputStreamReader(System.in));
+						input = bufferRead.readLine();
+						if (input.equals("stop")) {
+							logger.info("Stopping.");
+							break;
+						} else {
+							logger.info("Unknown command. '{}'", input);
+						}
+					}
 				}
 
 				network.shutDownChurn();
