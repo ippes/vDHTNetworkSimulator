@@ -93,6 +93,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 				// reject put
 				FutureRemove futureRemove;
+				// remove as long no removes get reported
 				do {
 					futureRemove = peer
 							.remove(key.locationKey())
