@@ -161,7 +161,7 @@ public class LocalNetworkSimulator {
 	}
 
 	private void enableReplication(PeerDHT peer) {
-		switch (configuration.getReplication()) {
+		switch (configuration.getReplicationStrategyName()) {
 		case "off":
 			// don't enable any replication
 			break;
@@ -241,14 +241,18 @@ public class LocalNetworkSimulator {
 	}
 
 	public void loadAndStoreResults() {
-		// load latest version
-		putCoordinator.loadResults();
-		// store settings and results in a file
-		Outcome.writeResult(configuration, putCoordinator.getResult());
+		if (putCoordinator != null) {
+			// load latest version
+			putCoordinator.loadResults();
+			// store settings and results in a file
+			Outcome.writeResult(configuration, putCoordinator.getResult());
+		}
 	}
 
 	public void printResults() {
-		putCoordinator.getResult().printResults();
+		if (putCoordinator != null) {
+			putCoordinator.getResult().printResults();
+		}
 	}
 
 	public void addPeersToTheNetwork(ChurnStrategy churnStrategy) {
