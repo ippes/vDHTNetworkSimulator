@@ -130,7 +130,7 @@ public final class Outcome {
 			fileWriter.append(',');
 			fileWriter.append(configuration.getChurnStrategyName());
 			fileWriter.append(',');
-			fileWriter.append(configuration.getReplication());
+			fileWriter.append(configuration.getReplicationStrategyName());
 			fileWriter.append(',');
 			fileWriter.append(Integer.toString(configuration.getReplicationFactor()));
 			fileWriter.append(',');
