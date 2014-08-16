@@ -24,7 +24,7 @@ public final class Configuration {
 	private final String TTL_CHECK_INTERVAL_IN_MILLISECONDS = "ttlCheckIntervalInMilliseconds";
 
 	// replication settings
-	private final String REPLICATION = "replication";
+	private final String REPLICATION_STRATEGY_NAME = "replicationStrategyName";
 	private final String REPLICATION_FACTOR = "replicationFactor";
 	private final String REPLICATION_INTERVAL_IN_MILLISECONDS = "replicationIntervalInMilliseconds";
 
@@ -58,7 +58,7 @@ public final class Configuration {
 	private final int ttlCheckIntervalInMilliseconds;
 
 	// replication settings
-	private final String replication;
+	private final String replicationStrategyName;
 	private final int replicationFactor;
 	private final int replicationIntervalInMilliseconds;
 
@@ -107,7 +107,7 @@ public final class Configuration {
 				.getProperty(TTL_CHECK_INTERVAL_IN_MILLISECONDS));
 
 		// load replication settings
-		this.replication = properties.getProperty(REPLICATION);
+		this.replicationStrategyName = properties.getProperty(REPLICATION_STRATEGY_NAME);
 		this.replicationFactor = Integer.parseInt(properties.getProperty(REPLICATION_FACTOR));
 		this.replicationIntervalInMilliseconds = Integer.parseInt(properties
 				.getProperty(REPLICATION_INTERVAL_IN_MILLISECONDS));
@@ -292,12 +292,12 @@ public final class Configuration {
 	}
 
 	/**
-	 * Get value for REPLICATION from configuration.
+	 * Get value for REPLICATION_STRATEGY_NAME from configuration.
 	 * 
 	 * @return type of replication <code>off</code>, <code>root</code> or <code>nRoot</code>
 	 */
-	public String getReplication() {
-		return replication;
+	public String getReplicationStrategyName() {
+		return replicationStrategyName;
 	}
 
 	/**
