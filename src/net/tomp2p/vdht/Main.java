@@ -53,19 +53,34 @@ public class Main {
 				int runtimeInMilliseconds = configuration
 						.getRuntimeInMilliseconds();
 				int numPuts = configuration.getNumPuts();
-				// run according given runtime
-				if (runtimeInMilliseconds > 0 && numPuts < 0) {
-					logger.info("Start putting data.");
-					network.startPutting();
-					logger.info("Running simulation for {} milliseconds.",
-							runtimeInMilliseconds);
-					Thread.sleep(runtimeInMilliseconds);
-				} else if (runtimeInMilliseconds < 0 && numPuts > 0) {
-					logger.info("Start putting data.");
-					network.startPutting();
-					// run till simulation stops
-					while (network.isPuttingRunning()) {
-						Thread.sleep(500);
+				if (numPuts > 0 || runtimeInMilliseconds > 0) {
+					logger.info("Type 'start' to start simulation.");
+					String input;
+					while (true) {
+						BufferedReader bufferRead = new BufferedReader(
+								new InputStreamReader(System.in));
+						input = bufferRead.readLine();
+						if (input.equals("start")) {
+							logger.info("Starting simulation.");
+							break;
+						} else {
+							logger.info("Unknown command. '{}'", input);
+						}
+					}
+					// run according given runtime
+					if (runtimeInMilliseconds > 0 && numPuts < 0) {
+						logger.info("Start putting data.");
+						network.startPutting();
+						logger.info("Running simulation for {} milliseconds.",
+								runtimeInMilliseconds);
+						Thread.sleep(runtimeInMilliseconds);
+					} else if (runtimeInMilliseconds < 0 && numPuts > 0) {
+						logger.info("Start putting data.");
+						network.startPutting();
+						// run till simulation stops
+						while (network.isPuttingRunning()) {
+							Thread.sleep(500);
+						}
 					}
 				} else {
 					logger.info("Type 'stop' to shutdown network.");
