@@ -76,6 +76,9 @@ public class Main {
 				network.loadAndStoreResults();
 				logger.info("Results loaded and stored.");
 
+				network.deleteData();
+				logger.info("Data removed.");
+
 				network.shutDownNetwork();
 				logger.info("Network is down.");
 

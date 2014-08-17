@@ -9,6 +9,7 @@ import java.util.Random;
 
 import net.tomp2p.connection.ChannelClientConfiguration;
 import net.tomp2p.dht.FutureGet;
+import net.tomp2p.dht.FutureRemove;
 import net.tomp2p.dht.PeerBuilderDHT;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.dht.StorageMemory;
@@ -17,6 +18,7 @@ import net.tomp2p.futures.FutureDiscover;
 import net.tomp2p.p2p.PeerBuilder;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
+import net.tomp2p.peers.Number640;
 import net.tomp2p.peers.PeerMap;
 import net.tomp2p.peers.PeerMapConfiguration;
 import net.tomp2p.replication.IndirectReplication;
@@ -56,11 +58,6 @@ public class LocalNetworkSimulator {
 
 	public Configuration getConfiguration() {
 		return configuration;
-	}
-
-	// TODO remove this
-	public List<PeerDHT> getPeers() {
-		return peers;
 	}
 
 	public void createNetwork() throws IOException {
@@ -255,10 +252,23 @@ public class LocalNetworkSimulator {
 		}
 	}
 
+	public void deleteData() {
+		if (putCoordinator != null) {
+			Number480 key = putCoordinator.getKey();
+			FutureRemove futureRemove = masterPeer
+					.remove(key.locationKey())
+					.from(new Number640(key.locationKey(), key.domainKey(), key
+							.contentKey(), Number160.ZERO))
+					.to(new Number640(key.locationKey(), key.domainKey(), key
+							.contentKey(), Number160.MAX_VALUE)).start();
+			futureRemove.awaitUninterruptibly();
+		}
+	}
+
 	public void addPeersToTheNetwork(ChurnStrategy churnStrategy) {
 		int numberOfPeerToJoin = churnStrategy.getNumJoiningPeers(peers.size());
-//		logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin,
-//				peers.size() + 1);
+		// logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin,
+		// peers.size() + 1);
 		for (int i = 0; i < numberOfPeerToJoin; i++) {
 			try {
 				// create new peer to join
@@ -284,8 +294,9 @@ public class LocalNetworkSimulator {
 	public void removePeersFromNetwork(ChurnStrategy churnStrategy) {
 		int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers
 				.size());
-//		logger.debug("Leaving {} peers. # peers = '{}'", numberOfLeavingPeers,
-//				peers.size() + 1);
+		// logger.debug("Leaving {} peers. # peers = '{}'",
+		// numberOfLeavingPeers,
+		// peers.size() + 1);
 		for (int i = 0; i < numberOfLeavingPeers; i++) {
 			KeyLock<Number160>.RefCounterLock lock = null;
 			PeerDHT peer = null;

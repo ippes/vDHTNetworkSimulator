@@ -26,6 +26,10 @@ public final class PutCoordinator {
 		this.result = new Result(key);
 	}
 
+	public Number480 getKey() {
+		return key;
+	}
+
 	public void start() {
 		for (int i = 0; i < putExecutors.length; i++) {
 			String id = String.valueOf((char) ('a' + i));
