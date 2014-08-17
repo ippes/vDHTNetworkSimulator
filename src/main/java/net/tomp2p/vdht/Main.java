@@ -89,7 +89,7 @@ public class Main {
 						BufferedReader bufferRead = new BufferedReader(
 								new InputStreamReader(System.in));
 						input = bufferRead.readLine();
-						if (input.equals("stop")) {
+						if (input != null && input.equals("stop")) {
 							logger.info("Stopping.");
 							break;
 						} else {
@@ -101,17 +101,21 @@ public class Main {
 				network.shutDownChurn();
 				logger.info("Churn stopped.");
 
-				network.shutDownPutCoordinators();
-				logger.info("Putting stopped.");
+				if (numPuts > 0 || runtimeInMilliseconds > 0) {
+					network.shutDownPutCoordinators();
+					logger.info("Putting stopped.");
 
-				network.loadAndStoreResults();
-				logger.info("Results loaded and stored.");
+					network.loadAndStoreResults();
+					logger.info("Results loaded and stored.");
+				}
 
 				network.shutDownNetwork();
 				logger.info("Network is down.");
 
-				logger.debug("Printing results.");
-				network.printResults();
+				if (numPuts > 0 || runtimeInMilliseconds > 0) {
+					logger.debug("Printing results.");
+					network.printResults();
+				}
 
 				logger.info("========================================================");
 			} catch (Exception e) {
