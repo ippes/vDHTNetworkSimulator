@@ -15,12 +15,12 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Seppi
  */
-public class Main {
+public class MainPut {
 
-	private static Logger logger = LoggerFactory.getLogger(Main.class);
+	private static Logger logger = LoggerFactory.getLogger(MainPut.class);
 
 	public static void main(String[] args) {
-		Thread.currentThread().setName("vDHT - Main");
+		Thread.currentThread().setName("vDHT - Main Put");
 
 		List<File> configFiles = loadConfigFiles(args);
 
