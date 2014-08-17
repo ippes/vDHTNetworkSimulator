@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+			</pattern>
+		</encoder>
+	</appender>
+
+	<!-- disable some loggers -->
+	<logger name="io.netty.util.concurrent.SingleThreadEventExecutor"
+		level="OFF" />
+	<logger name="io.netty.util.ResourceLeakDetector" level="OFF" />
+	<logger name="n.t.replication.IndirectReplication" level="WARN" />
+	<logger name="n.t.replication.Replication" level="WARN" />
+	
+	<!-- main logger -->
+	<logger name="net.tomp2p.vdht" level="DEBUG" />
+
+	<root level="WARN">
+		<appender-ref ref="STDOUT" />
+	</root>
+</configuration>
