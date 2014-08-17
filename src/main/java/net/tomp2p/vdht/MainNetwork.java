@@ -15,9 +15,9 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Seppi
  */
-public class Main {
+public class MainNetwork {
 
-	private static Logger logger = LoggerFactory.getLogger(Main.class);
+	private static Logger logger = LoggerFactory.getLogger(MainNetwork.class);
 
 	public static void main(String[] args) {
 		Thread.currentThread().setName("vDHT - Main");
@@ -27,7 +27,7 @@ public class Main {
 		for (File configFile : configFiles) {
 			try {
 				logger.info("========================================================");
-				logger.info("Running putting simulation. config file = '{}'",
+				logger.info("Running network simulation. config file = '{}'",
 						configFile.getName());
 
 				// initialize simulation
@@ -50,39 +50,17 @@ public class Main {
 
 				int runtimeInMilliseconds = configuration
 						.getRuntimeInMilliseconds();
-				int numPuts = configuration.getNumPuts();
-				// run according given runtime
-				if (runtimeInMilliseconds > 0 && numPuts < 0) {
-					logger.info("Start putting data.");
-					network.startPutting();
-					logger.info("Running simulation for {} milliseconds.",
-							runtimeInMilliseconds);
+				if (runtimeInMilliseconds > 0) {
 					Thread.sleep(runtimeInMilliseconds);
-				} else if (runtimeInMilliseconds < 0 && numPuts > 0) {
-					logger.info("Start putting data.");
-					network.startPutting();
-					// run till simulation stops
-					while (network.isPuttingRunning()) {
-						Thread.sleep(500);
-					}
+				} else {
+					Thread.sleep(Long.MAX_VALUE);
 				}
 
 				network.shutDownChurn();
 				logger.info("Churn stopped.");
 
-				network.shutDownPutCoordinators();
-				logger.info("Putting stopped.");
-
-				network.loadAndStoreResults();
-				logger.info("Results loaded and stored.");
-
 				network.shutDownNetwork();
 				logger.info("Network is down.");
-
-				if (numPuts > 0 || runtimeInMilliseconds > 0) {
-					logger.debug("Printing results.");
-					network.printResults();
-				}
 
 				logger.info("========================================================");
 			} catch (Exception e) {

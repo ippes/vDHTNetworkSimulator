@@ -14,8 +14,7 @@
 	<logger name="io.netty.util.ResourceLeakDetector" level="OFF" />
 	<logger name="n.t.replication.IndirectReplication" level="WARN" />
 	<logger name="n.t.replication.Replication" level="WARN" />
-	<logger naem="net.tomp2p" level="OFF"/>
-	
+
 	<!-- main logger -->
 	<logger name="net.tomp2p.vdht" level="DEBUG" />
 

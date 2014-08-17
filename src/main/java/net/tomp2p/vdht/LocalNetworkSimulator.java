@@ -257,8 +257,8 @@ public class LocalNetworkSimulator {
 
 	public void addPeersToTheNetwork(ChurnStrategy churnStrategy) {
 		int numberOfPeerToJoin = churnStrategy.getNumJoiningPeers(peers.size());
-		logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin,
-				peers.size() + 1);
+//		logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin,
+//				peers.size() + 1);
 		for (int i = 0; i < numberOfPeerToJoin; i++) {
 			try {
 				// create new peer to join
@@ -284,8 +284,8 @@ public class LocalNetworkSimulator {
 	public void removePeersFromNetwork(ChurnStrategy churnStrategy) {
 		int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers
 				.size());
-		logger.debug("Leaving {} peers. # peers = '{}'", numberOfLeavingPeers,
-				peers.size() + 1);
+//		logger.debug("Leaving {} peers. # peers = '{}'", numberOfLeavingPeers,
+//				peers.size() + 1);
 		for (int i = 0; i < numberOfLeavingPeers; i++) {
 			KeyLock<Number160>.RefCounterLock lock = null;
 			PeerDHT peer = null;
