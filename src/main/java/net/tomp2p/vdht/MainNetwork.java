@@ -38,7 +38,11 @@ public class MainNetwork {
 					configuration);
 
 			logger.info("Setting up the network simulator.");
-			network.createNetwork();
+			if (args.length == 3) {
+				network.createNetwork(args[1], Integer.parseInt(args[2]));
+			} else {
+				network.createNetwork();
+			}
 
 			logger.info("Start simulating churn.");
 			network.startChurn();

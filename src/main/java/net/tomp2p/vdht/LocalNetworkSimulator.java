@@ -61,6 +61,11 @@ public class LocalNetworkSimulator {
 	}
 
 	public void createNetwork() throws IOException {
+		createNetwork("local", -1);
+	}
+
+	public void createNetwork(String bootstrapIP, int bootstrapPort)
+			throws IOException {
 		// initially create peers within given boundaries
 		int numPeers = (configuration.getNumPeersMax() + configuration
 				.getNumPeersMin()) / 2;
@@ -72,15 +77,11 @@ public class LocalNetworkSimulator {
 				// enable replication if required
 				enableReplication(masterPeer);
 
-				if (!configuration.getBootstrapIP().equals("local")
-						&& configuration.getBootstrapPort() > 0) {
-					FutureDiscover futureDiscover = masterPeer
-							.peer()
+				if (!bootstrapIP.equals("local") && bootstrapPort > 0) {
+					FutureDiscover futureDiscover = masterPeer.peer()
 							.discover()
-							.inetAddress(
-									Inet4Address.getByName(configuration
-											.getBootstrapIP()))
-							.ports(configuration.getBootstrapPort()).start();
+							.inetAddress(Inet4Address.getByName(bootstrapIP))
+							.ports(bootstrapPort).start();
 					futureDiscover.awaitUninterruptibly();
 
 					if (futureDiscover.isSuccess()) {
@@ -93,19 +94,16 @@ public class LocalNetworkSimulator {
 						throw new IllegalStateException("Discovering failed.");
 					}
 
-					FutureBootstrap futureBootstrap = masterPeer
-							.peer()
+					FutureBootstrap futureBootstrap = masterPeer.peer()
 							.bootstrap()
-							.inetAddress(
-									Inet4Address.getByName(configuration
-											.getBootstrapIP()))
-							.ports(configuration.getBootstrapPort()).start();
+							.inetAddress(Inet4Address.getByName(bootstrapIP))
+							.ports(bootstrapPort).start();
 					futureBootstrap.awaitUninterruptibly();
 
 					if (futureBootstrap.isSuccess()) {
 						logger.debug(
 								"Bootstrapping successful. Bootstrapped to '{}'.",
-								configuration.getBootstrapIP());
+								bootstrapIP);
 					} else {
 						logger.warn("Bootstrapping failed: {}.",
 								futureBootstrap.failedReason());

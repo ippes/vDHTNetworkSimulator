@@ -16,8 +16,6 @@ public final class Configuration {
 
 	// general settings
 	private final String PORT = "port";
-	private final String BOOTSTRAP_IP = "bootstrapIP";
-	private final String BOOTSTRAP_PORT = "bootstrapPort";
 	private final String RUNTIME_IN_MILLISECONDS = "runtimeInMilliseconds";
 	private final String NUM_PEERS_MIN = "numPeersMin";
 	private final String NUM_PEERS_MAX = "numPeersMax";
@@ -46,44 +44,9 @@ public final class Configuration {
 	private final String PUT_TTL_IN_SECONDS = "putTTLInSeconds";
 	private final String PUT_PREPARE_TTL_IN_SECONDS = "putPrepareTTLInSeconds";
 
-	/** config attributes **/
-
-	// general settings
-	private final int port;
-	private final String bootstrapIP;
-	private final int bootstrapPort;
-	private final int runtimeInMilliseconds;
-	private final int numPeersMin;
-	private final int numPeersMax;
-	private final int ttlCheckIntervalInMilliseconds;
-
-	// replication settings
-	private final String replicationStrategyName;
-	private final int replicationFactor;
-	private final int replicationIntervalInMilliseconds;
-
-	// churn settings
-	private final int churnRateJoin;
-	private final int churnRateLeave;
-	private final int churnRateMinDelayInMilliseconds;
-	private final int churnRateMaxDelayInMilliseconds;
-	private final double churnJoinLeaveRate;
-	private final String churnStrategyName;
-
-	// put settings
-	private final int numPuts;
-	private final int maxVersions;
-	private final int putConcurrencyFactor;
-	private final int putDelayMaxInMilliseconds;
-	private final int putDelayMinInMilliseconds;
-	private final String putStrategyName;
-	private final int putTTLInSeconds;
-	private final int putPrepareTTLInSeconds;
+	private final Properties properties = new Properties();
 
 	public Configuration(File configFile) throws IOException {
-		// create new properties
-		Properties properties = new Properties();
-
 		FileInputStream in = null;
 		try {
 			// try to read config file
@@ -95,44 +58,6 @@ public final class Configuration {
 				in.close();
 			}
 		}
-
-		// load general settings
-		this.port = Integer.parseInt(properties.getProperty(PORT));
-		this.bootstrapIP = properties.getProperty(BOOTSTRAP_IP);
-		this.bootstrapPort = Integer.parseInt(properties.getProperty(BOOTSTRAP_PORT));
-		this.runtimeInMilliseconds = Integer.parseInt(properties.getProperty(RUNTIME_IN_MILLISECONDS));
-		this.numPeersMin = Integer.parseInt(properties.getProperty(NUM_PEERS_MIN));
-		this.numPeersMax = Integer.parseInt(properties.getProperty(NUM_PEERS_MAX));
-		this.ttlCheckIntervalInMilliseconds = Integer.parseInt(properties
-				.getProperty(TTL_CHECK_INTERVAL_IN_MILLISECONDS));
-
-		// load replication settings
-		this.replicationStrategyName = properties.getProperty(REPLICATION_STRATEGY_NAME);
-		this.replicationFactor = Integer.parseInt(properties.getProperty(REPLICATION_FACTOR));
-		this.replicationIntervalInMilliseconds = Integer.parseInt(properties
-				.getProperty(REPLICATION_INTERVAL_IN_MILLISECONDS));
-
-		// load churn settings
-		this.churnRateJoin = Integer.parseInt(properties.getProperty(CHURN_RATE_JOIN));
-		this.churnRateLeave = Integer.parseInt(properties.getProperty(CHURN_RATE_LEAVE));
-		this.churnRateMinDelayInMilliseconds = Integer.parseInt(properties
-				.getProperty(CHURN_RATE_MIN_DELAY_IN_MILLISECONDS));
-		this.churnRateMaxDelayInMilliseconds = Integer.parseInt(properties
-				.getProperty(CHURN_RATE_MAX_DELAY_IN_MILLISECONDS));
-		this.churnJoinLeaveRate = Double.parseDouble(properties.getProperty(CHURN_JOIN_LEAVE_RATE));
-		this.churnStrategyName = properties.getProperty(CHURN_STRATEGY_NAME);
-
-		// load put settings
-		this.numPuts = Integer.parseInt(properties.getProperty(NUM_PUTS));
-		this.maxVersions = Integer.parseInt(properties.getProperty(MAX_VERSIONS));
-		this.putConcurrencyFactor = Integer.parseInt(properties.getProperty(PUT_CONCURRENCY_FACTOR));
-		this.putDelayMaxInMilliseconds = Integer.parseInt(properties
-				.getProperty(PUT_DELAY_MAX_IN_MILLISECONDS));
-		this.putDelayMinInMilliseconds = Integer.parseInt(properties
-				.getProperty(PUT_DELAY_MIN_IN_MILLISECONDS));
-		this.putStrategyName = properties.getProperty(PUT_STRATEGY_NAME);
-		this.putTTLInSeconds = Integer.parseInt(properties.getProperty(PUT_TTL_IN_SECONDS));
-		this.putPrepareTTLInSeconds = Integer.parseInt(properties.getProperty(PUT_PREPARE_TTL_IN_SECONDS));
 	}
 
 	/**
@@ -141,7 +66,7 @@ public final class Configuration {
 	 * @return maximal amount of versions for one key
 	 */
 	public int getMaxVersions() {
-		return maxVersions;
+		return Integer.parseInt(properties.getProperty(MAX_VERSIONS));
 	}
 
 	/**
@@ -150,7 +75,8 @@ public final class Configuration {
 	 * @return runtime of the simulation in milliseconds
 	 */
 	public int getRuntimeInMilliseconds() {
-		return runtimeInMilliseconds;
+		return Integer
+				.parseInt(properties.getProperty(RUNTIME_IN_MILLISECONDS));
 	}
 
 	/**
@@ -159,7 +85,7 @@ public final class Configuration {
 	 * @return maximal allowed number of peers in the network
 	 */
 	public int getNumPeersMax() {
-		return numPeersMax;
+		return Integer.parseInt(properties.getProperty(NUM_PEERS_MAX));
 	}
 
 	/**
@@ -168,7 +94,7 @@ public final class Configuration {
 	 * @return minimal allowed number of peers in the network
 	 */
 	public int getNumPeersMin() {
-		return numPeersMin;
+		return Integer.parseInt(properties.getProperty(NUM_PEERS_MIN));
 	}
 
 	/**
@@ -177,7 +103,7 @@ public final class Configuration {
 	 * @return number of peers which can join at once into the network
 	 */
 	public int getChurnRateJoin() {
-		return churnRateJoin;
+		return Integer.parseInt(properties.getProperty(CHURN_RATE_JOIN));
 	}
 
 	/**
@@ -186,7 +112,7 @@ public final class Configuration {
 	 * @return number of peers which can leave at once the network
 	 */
 	public int getChurnRateLeave() {
-		return churnRateLeave;
+		return Integer.parseInt(properties.getProperty(CHURN_RATE_LEAVE));
 	}
 
 	/**
@@ -196,7 +122,8 @@ public final class Configuration {
 	 *         (join/leave)
 	 */
 	public int getChurnRateMinDelayInMilliseconds() {
-		return churnRateMinDelayInMilliseconds;
+		return Integer.parseInt(properties
+				.getProperty(CHURN_RATE_MIN_DELAY_IN_MILLISECONDS));
 	}
 
 	/**
@@ -206,7 +133,8 @@ public final class Configuration {
 	 *         (join/leave)
 	 */
 	public int getChurnRateMaxDelayInMilliseconds() {
-		return churnRateMaxDelayInMilliseconds;
+		return Integer.parseInt(properties
+				.getProperty(CHURN_RATE_MAX_DELAY_IN_MILLISECONDS));
 	}
 
 	/**
@@ -215,17 +143,19 @@ public final class Configuration {
 	 * @return ratio between join and leave churn events
 	 */
 	public double getChurnJoinLeaveRate() {
-		return churnJoinLeaveRate;
+		return Double
+				.parseDouble(properties.getProperty(CHURN_JOIN_LEAVE_RATE));
 	}
 
 	/**
 	 * Get value for CHURN_STRATEGY_NAME from configuration.
 	 * 
-	 * @return name of selected churn strategy <code>off</code>, <code>stepwise</code>,
-	 *         <code>stepwiseRandom</code> or <code>wild</code>
+	 * @return name of selected churn strategy <code>off</code>,
+	 *         <code>stepwise</code>, <code>stepwiseRandom</code> or
+	 *         <code>wild</code>
 	 */
 	public String getChurnStrategyName() {
-		return churnStrategyName;
+		return properties.getProperty(CHURN_STRATEGY_NAME);
 	}
 
 	/**
@@ -234,25 +164,7 @@ public final class Configuration {
 	 * @return port number for the master peer of the network
 	 */
 	public int getPort() {
-		return port;
-	}
-
-	/**
-	 * Get value for BOOTSTRAP_IP from configuration.
-	 * 
-	 * @return ip address of the bootstrap node
-	 */
-	public String getBootstrapIP() {
-		return bootstrapIP;
-	}
-
-	/**
-	 * Get value for BOOTSTRAP_PORT from configuration.
-	 * 
-	 * @return port number of the bootstrap node
-	 */
-	public int getBootstrapPort() {
-		return bootstrapPort;
+		return Integer.parseInt(properties.getProperty(PORT));
 	}
 
 	/**
@@ -261,7 +173,7 @@ public final class Configuration {
 	 * @return how often a key has to be put
 	 */
 	public int getNumPuts() {
-		return numPuts;
+		return Integer.parseInt(properties.getProperty(NUM_PUTS));
 	}
 
 	/**
@@ -270,7 +182,8 @@ public final class Configuration {
 	 * @return maximal delay between two put events
 	 */
 	public int getPutDelayMaxInMilliseconds() {
-		return putDelayMaxInMilliseconds;
+		return Integer.parseInt(properties
+				.getProperty(PUT_DELAY_MAX_IN_MILLISECONDS));
 	}
 
 	/**
@@ -279,7 +192,8 @@ public final class Configuration {
 	 * @return minimal delay between two put events
 	 */
 	public int getPutDelayMinInMilliseconds() {
-		return putDelayMinInMilliseconds;
+		return Integer.parseInt(properties
+				.getProperty(PUT_DELAY_MIN_IN_MILLISECONDS));
 	}
 
 	/**
@@ -288,25 +202,27 @@ public final class Configuration {
 	 * @return number of peers putting with the same key
 	 */
 	public int getPutConcurrencyFactor() {
-		return putConcurrencyFactor;
+		return Integer.parseInt(properties.getProperty(PUT_CONCURRENCY_FACTOR));
 	}
 
 	/**
 	 * Get value for REPLICATION_STRATEGY_NAME from configuration.
 	 * 
-	 * @return type of replication <code>off</code>, <code>root</code> or <code>nRoot</code>
+	 * @return type of replication <code>off</code>, <code>root</code> or
+	 *         <code>nRoot</code>
 	 */
 	public String getReplicationStrategyName() {
-		return replicationStrategyName;
+		return properties.getProperty(REPLICATION_STRATEGY_NAME);
 	}
 
 	/**
 	 * Get value for PUT_STRATEGY_NAME from configuration.
 	 * 
-	 * @return putting approach <code>traditional</code>, <code>optimistic</code> or <code>pessimistic</code>
+	 * @return putting approach <code>traditional</code>,
+	 *         <code>optimistic</code> or <code>pessimistic</code>
 	 */
 	public String getPutStrategyName() {
-		return putStrategyName;
+		return properties.getProperty(PUT_STRATEGY_NAME);
 	}
 
 	/**
@@ -315,7 +231,8 @@ public final class Configuration {
 	 * @return interval to trigger the replication in milliseconds
 	 */
 	public int getReplicationIntervalInMilliseconds() {
-		return replicationIntervalInMilliseconds;
+		return Integer.parseInt(properties
+				.getProperty(REPLICATION_INTERVAL_IN_MILLISECONDS));
 	}
 
 	/**
@@ -324,7 +241,8 @@ public final class Configuration {
 	 * @return frequency to check storage for expired data
 	 */
 	public int getTTLCheckIntervalInMilliseconds() {
-		return ttlCheckIntervalInMilliseconds;
+		return Integer.parseInt(properties
+				.getProperty(TTL_CHECK_INTERVAL_IN_MILLISECONDS));
 	}
 
 	/**
@@ -333,7 +251,7 @@ public final class Configuration {
 	 * @return size of replica set
 	 */
 	public int getReplicationFactor() {
-		return replicationFactor;
+		return Integer.parseInt(properties.getProperty(REPLICATION_FACTOR));
 	}
 
 	/**
@@ -342,7 +260,7 @@ public final class Configuration {
 	 * @return time to live of a stored (and confirmed) object
 	 */
 	public int getPutTTLInSeconds() {
-		return putTTLInSeconds;
+		return Integer.parseInt(properties.getProperty(PUT_TTL_IN_SECONDS));
 	}
 
 	/**
@@ -351,7 +269,8 @@ public final class Configuration {
 	 * @return time to live of a stored but not not confirmed (prepared) object
 	 */
 	public int getPutPrepareTTLInSeconds() {
-		return putPrepareTTLInSeconds;
+		return Integer.parseInt(properties
+				.getProperty(PUT_PREPARE_TTL_IN_SECONDS));
 	}
 
 }
