@@ -96,7 +96,7 @@ public class Result {
 
 	public void increaseConsistencyBreak(String id) {
 		if (consistencyBreaks.containsKey(id)) {
-			consistencyBreaks.put(id, forksAfterPut.get(id) + 1);
+			consistencyBreaks.put(id, consistencyBreaks.get(id) + 1);
 		} else {
 			consistencyBreaks.put(id, 1);
 		}
