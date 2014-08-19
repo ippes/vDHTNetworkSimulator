@@ -47,6 +47,10 @@ public abstract class PutStrategy {
 		result.decreaseWriteCounter(id);
 	}
 
+	public void decreaseMergeCounter() {
+		result.decreaseMergeCounter(id);
+	}
+
 	public void increaseConsistencyBreak() {
 		result.increaseConsistencyBreak(id);
 	}

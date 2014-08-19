@@ -54,6 +54,14 @@ public class Result {
 		}
 	}
 
+	public synchronized void decreaseMergeCounter(String id) {
+		if (merges.containsKey(id)) {
+			merges.put(id, merges.get(id) - 1);
+		} else {
+			logger.error("Should be never called.");
+		}
+	}
+
 	public synchronized void increaseMergeCounter(String id) {
 		if (merges.containsKey(id)) {
 			merges.put(id, merges.get(id) + 1);

@@ -20,7 +20,6 @@ import net.tomp2p.peers.Number640;
 import net.tomp2p.peers.PeerAddress;
 import net.tomp2p.rpc.DigestResult;
 import net.tomp2p.storage.Data;
-import net.tomp2p.utils.Pair;
 import net.tomp2p.vdht.Configuration;
 import net.tomp2p.vdht.Utils;
 
@@ -56,36 +55,50 @@ public final class OptimisticPutStrategy extends PutStrategy {
 		// repeat as long as a version has no delays nor forks
 		while (true) {
 			// get and update value from network
-			Pair<Data, Number160> result = getAndUpdate(peer);
+			Update update = getAndUpdate(peer);
 
 			// set time to live
-			Data updatedData = result.element0();
+			Data updatedData = update.data;
 			if (configuration.getPutTTLInSeconds() > 0) {
 				updatedData.ttlSeconds(configuration.getPutTTLInSeconds());
 			}
 
 			// put updated version into network
-			FuturePut futurePut = peer
-					.put(key.locationKey())
-					.data(key.contentKey(), updatedData)
-					.domainKey(key.domainKey())
-					.versionKey(result.element1())
-					// put has to address the whole replica set
-					.requestP2PConfiguration(
-							new RequestP2PConfiguration(configuration
-									.getReplicationFactor(), 5, 0)).start();
-			futurePut.awaitUninterruptibly();
+			FuturePut futurePut;
+			int counter = 0;
+			while (true) {
+				futurePut = peer
+						.put(key.locationKey())
+						.data(key.contentKey(), updatedData)
+						.domainKey(key.domainKey())
+						.versionKey(update.vKey)
+						// put has to address the whole replica set
+						.requestP2PConfiguration(
+								new RequestP2PConfiguration(configuration
+										.getReplicationFactor(), 0, 0)).start();
+				futurePut.awaitUninterruptibly();
+
+				if (futurePut.isFailed()) {
+					logger.warn("Put failed. Retrying.");
+					if (counter++ < 2) {
+						new IllegalStateException("Put failed after " + counter
+								+ " tries.");
+					}
+				} else {
+					break;
+				}
+			}
 
 			logger.debug(
 					"Put. value = '{}', write counter = '{}' version = '{}'",
-					result.element0().object(), getWriteCounter(), result
-							.element1().timestamp());
+					update.data.object(), getWriteCounter(),
+					update.vKey.timestamp());
 
 			// check for any version forks
 			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
 				// cache version key
-				if (result.element1().compareTo(cachedVersionKey) < 0) {
-					cachedVersionKey = result.element1();
+				if (update.vKey.compareTo(cachedVersionKey) < 0) {
+					cachedVersionKey = update.vKey;
 				}
 				break;
 			} else {
@@ -99,7 +112,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 							.remove(key.locationKey())
 							.domainKey(key.domainKey())
 							.contentKey(key.contentKey())
-							.versionKey(result.element1())
+							.versionKey(update.vKey)
 							// request has to hit all replica plus neighbors
 							.requestP2PConfiguration(
 									new RequestP2PConfiguration(configuration
@@ -111,54 +124,65 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				} while (futureRemove.isSuccess());
 
 				// protocol events
-				decreaseWriteCounter();
+				if (update.isMerge) {
+					decreaseMergeCounter();
+				} else {
+					decreaseWriteCounter();
+				}
 				increaseForkAfterPutCounter();
 			}
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	private Pair<Data, Number160> getAndUpdate(PeerDHT peer)
-			throws IOException, ClassNotFoundException {
+	private Update getAndUpdate(PeerDHT peer) throws IOException,
+			ClassNotFoundException {
 		// cache current time for timeouts
 		time = System.currentTimeMillis();
 		// repeat till no version delays occur and forks get resolved
+		NavigableMap<Number640, Set<Number160>> versionTree;
+		Map<Number640, Data> latestVersions;
 		while (true) {
-			FutureGet futureGet;
 			// fetch latest versions from the network, request also digest
 			int counter = 0;
 			while (true) {
-				futureGet = peer.get(key.locationKey())
+				FutureGet futureGet = peer
+						.get(key.locationKey())
 						.domainKey(key.domainKey())
-						.contentKey(key.contentKey()).getLatest().withDigest()
-						.start();
+						.contentKey(key.contentKey())
+						.getLatest()
+						.withDigest()
+						.requestP2PConfiguration(
+								new RequestP2PConfiguration(3, 0, 3)).start();
 				futureGet.awaitUninterruptibly();
 
-				if (counter > 2) {
-					logger.warn("Loading of data failed after {} tries.",
-							counter);
-					// report it
-					increaseConsistencyBreak();
-					break;
-				} else if (futureGet.isFailed() && !firstTime) {
+				// get raw result from all contacted peers
+				Map<PeerAddress, Map<Number640, Data>> rawData = futureGet
+						.rawData();
+				Map<PeerAddress, DigestResult> rawDigest = futureGet
+						.rawDigest();
+
+				// build the version tree from raw digest result;
+				versionTree = Utils.buildVersionTree(rawDigest);
+
+				// join all versions in one map
+				latestVersions = Utils.getLatestVersions(rawData, id);
+
+				// check if get was successful (first time can fail)
+				if ((futureGet.isFailed() || latestVersions.isEmpty())
+						&& !firstTime) {
 					logger.warn("Couldn't get data. try #{}", counter++);
+					if (counter > 2) {
+						logger.warn("Loading of data failed after {} tries.",
+								counter);
+						// report it
+						increaseConsistencyBreak();
+						break;
+					}
 				} else {
 					break;
 				}
 			}
-
-			// get raw result from all contacted peers
-			Map<PeerAddress, Map<Number640, Data>> rawData = futureGet
-					.rawData();
-			Map<PeerAddress, DigestResult> rawDigest = futureGet.rawDigest();
-
-			// build the version tree from raw digest result;
-			NavigableMap<Number640, Set<Number160>> versionTree = Utils
-					.buildVersionTree(rawDigest);
-
-			// join all versions in one map
-			Map<Number640, Data> latestVersions = Utils.getLatestVersions(
-					rawData, id);
 
 			if (Utils.hasVersionDelay(latestVersions, versionTree)
 					|| isDelayed(versionTree)) {
@@ -208,14 +232,13 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				// generate a new version key
 				Number160 versionKey = Utils.generateVersionKey(basedOnKey,
 						value.toString() + UUID.randomUUID());
-				return new Pair<Data, Number160>(data, versionKey);
+				return new Update(data, versionKey, false);
 			}
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	private Pair<Data, Number160> updateMerge(
-			Map<Number640, Data> versionsToMerge)
+	private Update updateMerge(Map<Number640, Data> versionsToMerge)
 			throws ClassNotFoundException, IOException {
 		if (versionsToMerge == null || versionsToMerge.isEmpty()
 				|| versionsToMerge.size() < 2) {
@@ -256,7 +279,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 
 		increaseMergeCounter();
 
-		return new Pair<Data, Number160>(data, versionKey);
+		return new Update(data, versionKey, true);
 	}
 
 	/**
@@ -282,6 +305,20 @@ public final class OptimisticPutStrategy extends PutStrategy {
 			}
 		}
 		return false;
+	}
+
+	private class Update {
+
+		private final Data data;
+		private final Number160 vKey;
+		private final boolean isMerge;
+
+		public Update(Data data, Number160 vKey, boolean isMerge) {
+			this.data = data;
+			this.vKey = vKey;
+			this.isMerge = isMerge;
+		}
+
 	}
 
 }
