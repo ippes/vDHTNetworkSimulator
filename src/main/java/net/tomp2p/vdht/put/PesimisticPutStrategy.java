@@ -51,6 +51,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 		this.configuration = configuration;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// repeat as long as a version can be confirmed
@@ -119,7 +120,12 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				if (update.vKey.compareTo(memorizedVersionKey) < 0) {
 					memorizedVersionKey = update.vKey;
 				}
-
+				// check for consistency breaks
+				if (!firstTime
+						&& ((HashMap<String, Integer>) update.data.object())
+								.get(id) == 1) {
+					increaseConsistencyBreak();
+				}
 				firstTime = false;
 				waitTime = 0;
 				if (update.isMerge) {
@@ -207,8 +213,6 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					if (counter > 2) {
 						logger.warn("Loading of data failed after {} tries.",
 								counter);
-						// report it
-						increaseConsistencyBreak();
 						break;
 					}
 				} else {

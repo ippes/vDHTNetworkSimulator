@@ -50,6 +50,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 		this.configuration = configuration;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// repeat as long as a version has no delays nor forks
@@ -99,6 +100,11 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				// cache version key
 				if (update.vKey.compareTo(cachedVersionKey) < 0) {
 					cachedVersionKey = update.vKey;
+				}
+				if (!firstTime
+						&& ((HashMap<String, Integer>) update.data.object())
+								.get(id) == 1) {
+					increaseConsistencyBreak();
 				}
 				firstTime = false;
 				break;
@@ -176,8 +182,6 @@ public final class OptimisticPutStrategy extends PutStrategy {
 					if (counter > 2) {
 						logger.warn("Loading of data failed after {} tries.",
 								counter);
-						// report it
-						increaseConsistencyBreak();
 						break;
 					}
 				} else {
