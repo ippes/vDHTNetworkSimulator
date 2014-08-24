@@ -81,7 +81,8 @@ public final class PutExecutor implements Runnable {
 			}
 		} finally {
 			if (shutdown
-					|| putStrategy.getWriteCounter() == configuration
+					|| putStrategy.getWriteCounter()
+							+ putStrategy.getMergeCounter() == configuration
 							.getNumPuts()) {
 				// store runtime
 				long runtime = System.currentTimeMillis() - startTime;

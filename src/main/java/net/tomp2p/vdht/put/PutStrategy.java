@@ -59,4 +59,8 @@ public abstract class PutStrategy {
 		return result.getWriteCounter(id);
 	}
 
+	public int getMergeCounter() {
+		return result.getMergeCounter(id);
+	}
+
 }

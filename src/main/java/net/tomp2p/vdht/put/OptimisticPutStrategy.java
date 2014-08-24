@@ -100,6 +100,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				if (update.vKey.compareTo(cachedVersionKey) < 0) {
 					cachedVersionKey = update.vKey;
 				}
+				firstTime = false;
 				break;
 			} else {
 				logger.warn("Version fork after put detected. Rejecting and retrying put.");

@@ -114,6 +114,14 @@ public class Result {
 		}
 	}
 
+	public int getMergeCounter(String id) {
+		if (merges.containsKey(id)) {
+			return merges.get(id);
+		} else {
+			return 0;
+		}
+	}
+
 	public int countWrites() {
 		int counter = 0;
 		for (int writes : writes.values()) {
