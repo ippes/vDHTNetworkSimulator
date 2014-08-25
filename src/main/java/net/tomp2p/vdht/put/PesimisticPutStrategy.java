@@ -126,12 +126,15 @@ public final class PesimisticPutStrategy extends PutStrategy {
 								.get(id) == 1) {
 					increaseConsistencyBreak();
 				}
-				firstTime = false;
+				if (update.isMerge) {
+					firstTime = false;
+				}
 				waitTime = 0;
 				if (update.isMerge) {
 					increaseMergeCounter();
+				} else {
+					increaseWriteCounter();
 				}
-				increaseWriteCounter();
 
 				logger.debug("Put confirmed. write counter = '{}'",
 						getWriteCounter());
