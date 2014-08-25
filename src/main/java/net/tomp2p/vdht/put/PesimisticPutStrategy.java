@@ -130,9 +130,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				waitTime = 0;
 				if (update.isMerge) {
 					increaseMergeCounter();
-				} else {
-					increaseWriteCounter();
 				}
+				increaseWriteCounter();
 
 				logger.debug("Put confirmed. write counter = '{}'",
 						getWriteCounter());

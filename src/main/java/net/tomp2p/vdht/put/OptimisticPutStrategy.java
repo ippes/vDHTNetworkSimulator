@@ -133,9 +133,9 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				// protocol events
 				if (update.isMerge) {
 					decreaseMergeCounter();
-				} else {
-					decreaseWriteCounter();
 				}
+				decreaseWriteCounter();
+
 				increaseForkAfterPutCounter();
 			}
 		}
@@ -282,6 +282,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 		Number160 versionKey = Utils.generateVersionKey(sortedMap.lastEntry()
 				.getKey().versionKey(), mergedValue.toString());
 
+		increaseWriteCounter();
 		increaseMergeCounter();
 
 		return new Update(data, versionKey, true);
