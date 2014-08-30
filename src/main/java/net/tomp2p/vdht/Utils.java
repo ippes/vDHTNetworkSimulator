@@ -74,9 +74,9 @@ public class Utils {
 										.getValue().intValue()]);
 					} else {
 						// ignore this peer
-						//logger.warn(
-						//		"Received unkown put status as result. peerAddress = '{}' putStatus = '{}'",
-						//		peerAddress, result.getValue().intValue());
+						// logger.warn(
+						// "Received unkown put status as result. peerAddress = '{}' putStatus = '{}'",
+						// peerAddress, result.getValue().intValue());
 					}
 				}
 			}
@@ -95,8 +95,19 @@ public class Utils {
 	 * @throws IllegalStateException
 	 */
 	public static boolean hasVersionForkAfterGet(
-			Map<Number640, Data> latestVersions) throws IllegalStateException {
-		if (latestVersions.size() > 1) {
+			Map<Number640, Data> latestVersions, int versionLimit)
+			throws IllegalStateException {
+		NavigableMap<Number640, Data> map = new TreeMap<Number640, Data>(
+				latestVersions);
+		if (!map.isEmpty()) {
+			// remove all clearly out dated versions
+			while (map.firstKey().versionKey().timestamp() + versionLimit <= map
+					.lastKey().versionKey().timestamp()) {
+				latestVersions.remove(map.firstKey());
+				map.pollFirstEntry();
+			}
+		}
+		if (map.size() > 1) {
 			return true;
 		} else {
 			return false;
@@ -141,15 +152,17 @@ public class Utils {
 	public static NavigableMap<Number640, Set<Number160>> buildVersionTree(
 			Map<PeerAddress, DigestResult> rawDigest) {
 		NavigableMap<Number640, Set<Number160>> versionTree = new TreeMap<Number640, Set<Number160>>();
-		for (PeerAddress peerAddress : rawDigest.keySet()) {
-			for (Number640 key : rawDigest.get(peerAddress).keyDigest()
-					.keySet()) {
-				for (Number160 bKey : rawDigest.get(peerAddress).keyDigest()
-						.get(key)) {
-					if (!versionTree.containsKey(key)) {
-						versionTree.put(key, new HashSet<Number160>());
+		if (rawDigest != null) {
+			for (PeerAddress peerAddress : rawDigest.keySet()) {
+				for (Number640 key : rawDigest.get(peerAddress).keyDigest()
+						.keySet()) {
+					for (Number160 bKey : rawDigest.get(peerAddress)
+							.keyDigest().get(key)) {
+						if (!versionTree.containsKey(key)) {
+							versionTree.put(key, new HashSet<Number160>());
+						}
+						versionTree.get(key).add(bKey);
 					}
-					versionTree.get(key).add(bKey);
 				}
 			}
 		}
@@ -161,25 +174,29 @@ public class Utils {
 	 * 
 	 * @param peerDataMap
 	 *            get result from all contacted peers
-	 * @param id 
+	 * @param id
 	 * @return map containing all latest versions
 	 */
 	public static Map<Number640, Data> getLatestVersions(
 			Map<PeerAddress, Map<Number640, Data>> peerDataMap, String id) {
 		Map<Number640, Data> latestVersions = new HashMap<Number640, Data>();
-		for (PeerAddress peerAddress : peerDataMap.keySet()) {
-			Map<Number640, Data> dataMap = peerDataMap.get(peerAddress);
-			if (dataMap == null) {
-				// ignore this peer
-				//logger.warn("Received null. responder = '{}'", peerAddress);
-			} else if (dataMap.isEmpty()) {
-				// ignore this peer
-				//logger.warn("Received empty map. responder = '{}'", peerAddress);
-			} else {
-				NavigableMap<Number640, Data> sortedDataMap = new TreeMap<Number640, Data>(
-						dataMap);
-				for (Number640 key : sortedDataMap.keySet()) {
-					latestVersions.put(key, sortedDataMap.get(key));
+		if (peerDataMap != null) {
+			for (PeerAddress peerAddress : peerDataMap.keySet()) {
+				Map<Number640, Data> dataMap = peerDataMap.get(peerAddress);
+				if (dataMap == null) {
+					// ignore this peer
+					// logger.warn("Received null. responder = '{}'",
+					// peerAddress);
+				} else if (dataMap.isEmpty()) {
+					// ignore this peer
+					// logger.warn("Received empty map. responder = '{}'",
+					// peerAddress);
+				} else {
+					NavigableMap<Number640, Data> sortedDataMap = new TreeMap<Number640, Data>(
+							dataMap);
+					for (Number640 key : sortedDataMap.keySet()) {
+						latestVersions.put(key, sortedDataMap.get(key));
+					}
 				}
 			}
 		}

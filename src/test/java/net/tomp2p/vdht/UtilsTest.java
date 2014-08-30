@@ -32,12 +32,12 @@ public class UtilsTest {
 
 		Number480 key = new Number480(new Random());
 
-		Number640 key0 = new Number640(key, Utils.generateVersionKey(Number160.ZERO, UUID.randomUUID()
-				.toString()));
-		Number640 key1 = new Number640(key, Utils.generateVersionKey(key0.versionKey(), UUID.randomUUID()
-				.toString()));
-		Number640 key2 = new Number640(key, Utils.generateVersionKey(key1.versionKey(), UUID.randomUUID()
-				.toString()));
+		Number640 key0 = new Number640(key, Utils.generateVersionKey(
+				Number160.ZERO, UUID.randomUUID().toString()));
+		Number640 key1 = new Number640(key, Utils.generateVersionKey(
+				key0.versionKey(), UUID.randomUUID().toString()));
+		Number640 key2 = new Number640(key, Utils.generateVersionKey(
+				key1.versionKey(), UUID.randomUUID().toString()));
 
 		latestVersions.put(key2, null);
 
@@ -62,12 +62,12 @@ public class UtilsTest {
 
 		Number480 key = new Number480(new Random());
 
-		Number640 key0 = new Number640(key, Utils.generateVersionKey(Number160.ZERO, UUID.randomUUID()
-				.toString()));
-		Number640 key1 = new Number640(key, Utils.generateVersionKey(key0.versionKey(), UUID.randomUUID()
-				.toString()));
-		Number640 key2 = new Number640(key, Utils.generateVersionKey(key1.versionKey(), UUID.randomUUID()
-				.toString()));
+		Number640 key0 = new Number640(key, Utils.generateVersionKey(
+				Number160.ZERO, UUID.randomUUID().toString()));
+		Number640 key1 = new Number640(key, Utils.generateVersionKey(
+				key0.versionKey(), UUID.randomUUID().toString()));
+		Number640 key2 = new Number640(key, Utils.generateVersionKey(
+				key1.versionKey(), UUID.randomUUID().toString()));
 
 		latestVersions.put(key0, null);
 
@@ -93,4 +93,18 @@ public class UtilsTest {
 		Assert.assertTrue(Utils.hasVersionDelay(latestVersions, versionTree));
 	}
 
+	@Test
+	public void testHasVersionForkAfterGet() {
+		Map<Number640, Data> latestVersions = new HashMap<Number640, Data>();
+		Number480 key = new Number480(new Random());
+		latestVersions.put(new Number640(key, new Number160(12, Number160
+				.createHash("test").number96())), new Data());
+		Assert.assertFalse(Utils.hasVersionForkAfterGet(latestVersions, 10));
+		latestVersions.put(new Number640(key, new Number160(22, Number160
+				.createHash("test").number96())), new Data());
+		Assert.assertFalse(Utils.hasVersionForkAfterGet(latestVersions, 10));
+		latestVersions.put(new Number640(key, new Number160(21, Number160
+				.createHash("test").number96())), new Data());
+		Assert.assertTrue(Utils.hasVersionForkAfterGet(latestVersions, 10));
+	}
 }
