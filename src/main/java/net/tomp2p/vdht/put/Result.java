@@ -164,8 +164,10 @@ public class Result {
 
 	public int countVersions() {
 		int counter = 0;
-		for (int versions : latestVersion.values()) {
-			counter += versions;
+		if (latestVersion != null) {
+			for (int versions : latestVersion.values()) {
+				counter += versions;
+			}
 		}
 		return counter;
 	}
