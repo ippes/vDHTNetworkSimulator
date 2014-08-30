@@ -10,20 +10,25 @@ import java.util.Random;
 import net.tomp2p.connection.ChannelClientConfiguration;
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FutureRemove;
+import net.tomp2p.dht.FutureSend;
 import net.tomp2p.dht.PeerBuilderDHT;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.dht.StorageMemory;
 import net.tomp2p.futures.FutureBootstrap;
 import net.tomp2p.futures.FutureDiscover;
+import net.tomp2p.p2p.MaintenanceTask;
 import net.tomp2p.p2p.PeerBuilder;
+import net.tomp2p.p2p.RequestP2PConfiguration;
+import net.tomp2p.peers.DefaultMaintenance;
 import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.peers.Number640;
+import net.tomp2p.peers.PeerAddress;
 import net.tomp2p.peers.PeerMap;
 import net.tomp2p.peers.PeerMapConfiguration;
 import net.tomp2p.replication.IndirectReplication;
+import net.tomp2p.rpc.ObjectDataReply;
 import net.tomp2p.vdht.churn.ChurnExecutor;
-import net.tomp2p.vdht.churn.ChurnStrategy;
 import net.tomp2p.vdht.put.PutCoordinator;
 import net.tomp2p.vdht.put.PutStrategy;
 
@@ -58,6 +63,18 @@ public class LocalNetworkSimulator {
 
 	public Configuration getConfiguration() {
 		return configuration;
+	}
+
+	public PutCoordinator getPutCoordinator() {
+		return putCoordinator;
+	}
+
+	public int getPeerSize() {
+		if (peers != null) {
+			return peers.size();
+		} else {
+			return 0;
+		}
 	}
 
 	public void createNetwork() throws IOException {
@@ -110,9 +127,6 @@ public class LocalNetworkSimulator {
 						throw new IllegalStateException("Bootstraping failed.");
 					}
 				}
-
-				logger.trace("Master Peer added to network. peer id = '{}'",
-						masterPeer.peerID());
 			} else {
 				// create peer
 				PeerDHT peer = createPeer(false);
@@ -126,8 +140,6 @@ public class LocalNetworkSimulator {
 				fBoo.awaitUninterruptibly();
 
 				peers.add(peer);
-				logger.trace("Peer added to network. peer id = '{}'",
-						peer.peerID());
 			}
 		}
 		logger.debug("Network created. numPeers = '{}'", numPeers);
@@ -140,19 +152,83 @@ public class LocalNetworkSimulator {
 		PeerMapConfiguration peerMapConfiguration = new PeerMapConfiguration(
 				peerId);
 		peerMapConfiguration.peerVerification(false);
+		// set higher peer map update frequency
+		peerMapConfiguration.maintenance(new DefaultMaintenance(4,
+				new int[] { 1 }));
+		// only one try required to label a peer as offline
+		peerMapConfiguration.offlineCount(1);
+		peerMapConfiguration.shutdownTimeout(1);
 		PeerMap peerMap = new PeerMap(peerMapConfiguration);
 		// reduce TCP number of short-lived TCP connections to avoid timeouts
 		ChannelClientConfiguration channelConfig = PeerBuilder
 				.createDefaultChannelClientConfiguration();
-		channelConfig.maxPermitsTCP(12);
+		channelConfig.maxPermitsTCP(configuration.getReplicationFactor() * 3);
 
-		return new PeerBuilderDHT(new PeerBuilder(peerId)
+		final PeerDHT peer = new PeerBuilderDHT(new PeerBuilder(peerId)
 				.ports(configuration.getPort()).peerMap(peerMap)
 				.masterPeer(isMaster ? null : masterPeer.peer())
-				.channelClientConfiguration(channelConfig).start()).storage(
+				.channelClientConfiguration(channelConfig)
+				.maintenanceTask(new MaintenanceTask().intervalMillis(100))
+				.start()).storage(
 				new StorageMemory(configuration
 						.getTTLCheckIntervalInMilliseconds(), configuration
 						.getMaxVersions())).start();
+
+		if (!isMaster) {
+			// add a message handler to handle shutdown messages
+			peer.peer().objectDataReply(new ObjectDataReply() {
+				@Override
+				public Object reply(PeerAddress sender, Object request)
+						throws Exception {
+					String command = (String) request;
+					if (command.equals("shutdown")) {
+						logger.debug("I {} have to shutdown.", peer.peerID());
+						new Thread(new Runnable() {
+							@Override
+							public void run() {
+								Thread.currentThread().setName(
+										"vDHT - Shutdown Peer");
+								KeyLock<Number160>.RefCounterLock lock = null;
+								while (lock == null) {
+									lock = keyLock.tryLock(peer.peerID());
+								}
+								// receiving peer has to shutdown
+								peers.remove(peer);
+								peer.shutdown().awaitUninterruptibly();
+								keyLock.unlock(lock);
+							}
+						}).start();
+					} else if (command.equals("create")) {
+						logger.debug("I {} have to create.", peer.peerID());
+						new Thread(new Runnable() {
+							@Override
+							public void run() {
+								Thread.currentThread().setName(
+										"vDHT - Create Peer");
+								// create one peer
+								addPeersToTheNetwork(1);
+							}
+						}).start();
+					} else {
+						logger.error("Received an unknown message '{}'.",
+								request);
+					}
+					return null;
+				}
+			});
+		} else {
+			// add a message handler to handle shutdown messages
+			peer.peer().objectDataReply(new ObjectDataReply() {
+				@Override
+				public Object reply(PeerAddress sender, Object request)
+						throws Exception {
+					logger.debug("As master I will not {} a peer.", request);
+					return null;
+				}
+			});
+		}
+
+		return peer;
 	}
 
 	private void enableReplication(PeerDHT peer) {
@@ -167,7 +243,7 @@ public class LocalNetworkSimulator {
 							configuration
 									.getReplicationIntervalInMilliseconds())
 					.replicationFactor(configuration.getReplicationFactor())
-					.start();
+					.keepData(false).start();
 			break;
 		case "nRoot":
 		default:
@@ -178,7 +254,7 @@ public class LocalNetworkSimulator {
 									.getReplicationIntervalInMilliseconds())
 					.nRoot()
 					.replicationFactor(configuration.getReplicationFactor())
-					.start();
+					.keepData(false).start();
 		}
 	}
 
@@ -263,8 +339,7 @@ public class LocalNetworkSimulator {
 		}
 	}
 
-	public void addPeersToTheNetwork(ChurnStrategy churnStrategy) {
-		int numberOfPeerToJoin = churnStrategy.getNumJoiningPeers(peers.size());
+	public void addPeersToTheNetwork(int numberOfPeerToJoin) {
 		// logger.debug("Joining {} peers. # peer = '{}'", numberOfPeerToJoin,
 		// peers.size() + 1);
 		for (int i = 0; i < numberOfPeerToJoin; i++) {
@@ -281,17 +356,13 @@ public class LocalNetworkSimulator {
 				futureBootstrap.awaitUninterruptibly();
 
 				peers.add(newPeer);
-				logger.trace("New peer joined the network. peer id = '{}'",
-						newPeer.peerID());
 			} catch (IOException e) {
 				logger.error("Couldn't create a new peer.", e);
 			}
 		}
 	}
 
-	public void removePeersFromNetwork(ChurnStrategy churnStrategy) {
-		int numberOfLeavingPeers = churnStrategy.getNumLeavingPeers(peers
-				.size());
+	public void removePeersFromNetwork(int numberOfLeavingPeers) {
 		// logger.debug("Leaving {} peers. # peers = '{}'",
 		// numberOfLeavingPeers,
 		// peers.size() + 1);
@@ -305,8 +376,6 @@ public class LocalNetworkSimulator {
 			peers.remove(peer);
 			peer.shutdown().awaitUninterruptibly();
 			keyLock.unlock(lock);
-			logger.trace("Peer leaved the network. peer id = '{}'",
-					peer.peerID());
 		}
 	}
 
@@ -346,6 +415,42 @@ public class LocalNetworkSimulator {
 		} finally {
 			keyLock.unlock(lock);
 		}
+	}
+
+	public void sendShutdownMessages(Number160 key, int numPeers) {
+		//logger.debug("Shutdowning {} nodes. nodes = '{}'", numPeers, peers.size());
+		KeyLock<Number160>.RefCounterLock lock = null;
+		PeerDHT peer = null;
+		while (lock == null) {
+			peer = peers.get(random.nextInt(peers.size()));
+			lock = keyLock.tryLock(peer.peerID());
+		}
+		// contact given number of peers
+		FutureSend futureSend = peer
+				.send(key)
+				.object("shutdown")
+				.requestP2PConfiguration(
+						new RequestP2PConfiguration(numPeers, 0, 0)).start();
+		futureSend.awaitUninterruptibly();
+		keyLock.unlock(lock);
+	}
+
+	public void sendCreateMessages(Number160 key, int numPeers) {
+		//logger.debug("Creating {} nodes. nodes = '{}'", numPeers, peers.size());
+		KeyLock<Number160>.RefCounterLock lock = null;
+		PeerDHT peer = null;
+		while (lock == null) {
+			peer = peers.get(random.nextInt(peers.size()));
+			lock = keyLock.tryLock(peer.peerID());
+		}
+		// contact given number of peers
+		FutureSend futureSend = peer
+				.send(key)
+				.object("create")
+				.requestP2PConfiguration(
+						new RequestP2PConfiguration(numPeers, 0, 0)).start();
+		futureSend.awaitUninterruptibly();
+		keyLock.unlock(lock);
 	}
 
 }
