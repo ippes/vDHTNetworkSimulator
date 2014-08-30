@@ -177,9 +177,9 @@ public class Utils {
 	 * @param id
 	 * @return map containing all latest versions
 	 */
-	public static Map<Number640, Data> getLatestVersions(
+	public static NavigableMap<Number640, Data> getLatestVersions(
 			Map<PeerAddress, Map<Number640, Data>> peerDataMap, String id) {
-		Map<Number640, Data> latestVersions = new HashMap<Number640, Data>();
+		NavigableMap<Number640, Data> latestVersions = new TreeMap<Number640, Data>();
 		if (peerDataMap != null) {
 			for (PeerAddress peerAddress : peerDataMap.keySet()) {
 				Map<Number640, Data> dataMap = peerDataMap.get(peerAddress);

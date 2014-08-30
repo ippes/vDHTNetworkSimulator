@@ -182,7 +182,7 @@ public class LocalNetworkSimulator {
 						throws Exception {
 					String command = (String) request;
 					if (command.equals("shutdown")) {
-						logger.debug("I {} have to shutdown.", peer.peerID());
+						//logger.debug("I {} have to shutdown.", peer.peerID());
 						new Thread(new Runnable() {
 							@Override
 							public void run() {
@@ -199,7 +199,7 @@ public class LocalNetworkSimulator {
 							}
 						}).start();
 					} else if (command.equals("create")) {
-						logger.debug("I {} have to create.", peer.peerID());
+						//logger.debug("I {} have to create.", peer.peerID());
 						new Thread(new Runnable() {
 							@Override
 							public void run() {
