@@ -64,7 +64,7 @@ public class KeyLock<K> {
 					cache.remove(lock.key);
 				}
 			} else {
-				logger.warn("Received an unkownd lock.");;
+				logger.warn("Received an unknown lock.");;
 			}
 		} finally {
 			lockInternal.unlock();
