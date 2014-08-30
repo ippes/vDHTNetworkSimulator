@@ -22,10 +22,10 @@ public final class ChurnExecutor implements Runnable {
 	private final Logger logger = LoggerFactory.getLogger(ChurnExecutor.class);
 
 	private final Random random = new Random();
-	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+	private final ScheduledExecutorService scheduler = Executors
+			.newScheduledThreadPool(1);
 
 	private final Configuration configuration;
-	private final LocalNetworkSimulator simulator;
 	private final ChurnStrategy churnStrategy;
 
 	private boolean shutdown = false;
@@ -33,23 +33,26 @@ public final class ChurnExecutor implements Runnable {
 
 	public ChurnExecutor(LocalNetworkSimulator simulator) {
 		this.configuration = simulator.getConfiguration();
-		this.simulator = simulator;
 		String churnStrategyName = configuration.getChurnStrategyName();
 		switch (churnStrategyName) {
-			case StepwiseChurnStrategy.CHURN_STRATEGY_NAME:
-				churnStrategy = new StepwiseChurnStrategy(configuration);
-				break;
-			case StepwiseRandomChurnStrategy.CHURN_STRATEGY_NAME:
-				churnStrategy = new StepwiseRandomChurnStrategy(configuration);
-				break;
-			case WildChurnStrategy.CHURN_STRATEGY_NAME:
-				churnStrategy = new WildChurnStrategy(configuration);
-				break;
-			default:
-				churnStrategy = new StepwiseChurnStrategy(configuration);
-				logger.warn(
-						"An unknown chrun strategy name '{}' was given. Selected '{}' as default churn strategy.",
-						churnStrategyName, StepwiseChurnStrategy.CHURN_STRATEGY_NAME);
+		case StepwiseChurnStrategy.CHURN_STRATEGY_NAME:
+			churnStrategy = new StepwiseChurnStrategy(simulator);
+			break;
+		case StepwiseRandomChurnStrategy.CHURN_STRATEGY_NAME:
+			churnStrategy = new StepwiseRandomChurnStrategy(simulator);
+			break;
+		case WildChurnStrategy.CHURN_STRATEGY_NAME:
+			churnStrategy = new WildChurnStrategy(simulator);
+			break;
+		case SpecificChurnStrategy.CHURN_STRATEGY_NAME:
+			churnStrategy = new SpecificChurnStrategy(simulator);
+			break;
+		default:
+			churnStrategy = new StepwiseChurnStrategy(simulator);
+			logger.warn(
+					"An unknown chrun strategy name '{}' was given. Selected '{}' as default churn strategy.",
+					churnStrategyName,
+					StepwiseChurnStrategy.CHURN_STRATEGY_NAME);
 		}
 	}
 
@@ -66,13 +69,7 @@ public final class ChurnExecutor implements Runnable {
 	public void run() {
 		Thread.currentThread().setName("vDHT - Churn");
 		try {
-			// toggle join/leaves
-			double churnRate = random.nextDouble();
-			if (configuration.getChurnJoinLeaveRate() < churnRate) {
-				simulator.addPeersToTheNetwork(churnStrategy);
-			} else {
-				simulator.removePeersFromNetwork(churnStrategy);
-			}
+			churnStrategy.doChurn();
 		} catch (Exception e) {
 			if (!shutdown) {
 				logger.error("Caught an unexpected exception.", e);
@@ -98,7 +95,8 @@ public final class ChurnExecutor implements Runnable {
 		int maxDelta = configuration.getChurnRateMaxDelayInMilliseconds()
 				- configuration.getChurnRateMinDelayInMilliseconds();
 		int varyingDelta = maxDelta > 0 ? random.nextInt(maxDelta + 1) : 0;
-		return configuration.getChurnRateMinDelayInMilliseconds() + varyingDelta;
+		return configuration.getChurnRateMinDelayInMilliseconds()
+				+ varyingDelta;
 	}
 
 	public boolean isShutdown() {

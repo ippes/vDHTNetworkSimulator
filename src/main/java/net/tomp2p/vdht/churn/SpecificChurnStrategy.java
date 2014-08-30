@@ -2,7 +2,6 @@ package net.tomp2p.vdht.churn;
 
 import java.util.Random;
 
-import net.tomp2p.peers.Number160;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.Configuration;
 import net.tomp2p.vdht.LocalNetworkSimulator;

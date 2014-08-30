@@ -3,6 +3,7 @@ package net.tomp2p.vdht.churn;
 import java.util.Random;
 
 import net.tomp2p.vdht.Configuration;
+import net.tomp2p.vdht.LocalNetworkSimulator;
 
 /**
  * A churn strategy where the amount of joining and leaving peers varies.
@@ -16,22 +17,38 @@ public final class WildChurnStrategy implements ChurnStrategy {
 
 	private final Random random = new Random();
 
+	private final LocalNetworkSimulator simulator;
 	private final Configuration configuration;
 
-	public WildChurnStrategy(Configuration configuration) {
-		this.configuration = configuration;
+	public WildChurnStrategy(LocalNetworkSimulator simulator) {
+		this.simulator = simulator;
+		this.configuration = simulator.getConfiguration();
 	}
 
-	@Override
-	public int getNumJoiningPeers(int currentNumberOfPeers) {
-		int maxJoiningPeers = configuration.getNumPeersMax() - (currentNumberOfPeers + 1);
+	private int getNumJoiningPeers() {
+		int currentNumberOfPeers = simulator.getPeerSize();
+		int maxJoiningPeers = configuration.getNumPeersMax()
+				- (currentNumberOfPeers + 1);
 		return maxJoiningPeers > 0 ? random.nextInt(maxJoiningPeers + 1) : 0;
 	}
 
+	private int getNumLeavingPeers() {
+		int currentNumberOfPeers = simulator.getPeerSize();
+		int maxLeavingPeers = currentNumberOfPeers
+				- configuration.getNumPeersMin();
+		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers + 1) + 1
+				: 0;
+	}
+
 	@Override
-	public int getNumLeavingPeers(int currentNumberOfPeers) {
-		int maxLeavingPeers = currentNumberOfPeers - configuration.getNumPeersMin();
-		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers + 1) + 1 : 0;
+	public void doChurn() {
+		// toggle join/leaves
+		double churnRate = random.nextDouble();
+		if (configuration.getChurnJoinLeaveRate() < churnRate) {
+			simulator.addPeersToTheNetwork(getNumJoiningPeers());
+		} else {
+			simulator.removePeersFromNetwork(getNumLeavingPeers());
+		}
 	}
 
 }
