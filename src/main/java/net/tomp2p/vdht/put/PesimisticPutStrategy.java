@@ -2,6 +2,7 @@ package net.tomp2p.vdht.put;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -39,22 +40,32 @@ public final class PesimisticPutStrategy extends PutStrategy {
 	public static final String PUT_STRATEGY_NAME = "pessimistic";
 
 	private final Configuration configuration;
+	private final int replicationFactor;
 
-	private Number160 memorizedVersionKey = Number160.ZERO;
+	// cached data
+	private NavigableMap<Number640, Set<Number160>> versionTree = new TreeMap<Number640, Set<Number160>>();
+
 	private boolean firstTime = true;
-	private int waitTime = 0;
 	private Random random = new Random();
+
+	private final int putFailedLimit = 3;
+	private final int getFailedLimit = 3;
+	private final int forkLimit = 10;
+	private final int delayLostLimit = 10;
 
 	public PesimisticPutStrategy(String id, Number480 key, Result result,
 			Configuration configuration) {
 		super(id, key, result);
 		this.configuration = configuration;
+		this.replicationFactor = configuration.getReplicationFactor();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void getUpdateAndPut(PeerDHT peer) throws Exception {
 		// repeat as long as a version can be confirmed
+		int forkCounter = 0;
+		int forkWaitTime = random.nextInt(1000) + 500;
 		while (true) {
 			// get and update value from network
 			Update update = getAndUpdate(peer);
@@ -70,7 +81,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 			// put updated version into network
 			FuturePut futurePut;
-			int counter = 0;
+			int putCounter = 0;
+			int putWaitTime = random.nextInt(500) + 500;
 			while (true) {
 				futurePut = peer
 						.put(key.locationKey())
@@ -79,15 +91,19 @@ public final class PesimisticPutStrategy extends PutStrategy {
 						.versionKey(update.vKey)
 						// put has to address the whole replica set
 						.requestP2PConfiguration(
-								new RequestP2PConfiguration(configuration
-										.getReplicationFactor(), 0, 0)).start();
+								new RequestP2PConfiguration(
+										replicationFactor - 1, 0, 1)).start();
 				futurePut.awaitUninterruptibly();
 
 				if (futurePut.isFailed()) {
-					logger.warn("Put failed. Retrying.");
-					if (counter++ < 2) {
-						new IllegalStateException("Put failed after " + counter
-								+ " tries.");
+					logger.warn("Put failed. Try #{}. Retrying.", putCounter++);
+					if (putCounter > putFailedLimit) {
+						logger.warn("Put failed after {} tries. reason = '{}'",
+								putCounter, futurePut.failedReason());
+						break;
+					} else {
+						Thread.sleep(putWaitTime);
+						putWaitTime = putWaitTime * 2;
 					}
 				} else {
 					break;
@@ -98,13 +114,18 @@ public final class PesimisticPutStrategy extends PutStrategy {
 					update.data.object(), update.vKey.timestamp());
 
 			// check for any version forks
-			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())) {
+			if (!Utils.hasVersionForkAfterPut(futurePut.rawResult())
+					|| forkCounter >= forkLimit) {
+				if (forkCounter >= forkLimit) {
+					logger.warn("Ignoring fork after {} rejects and retries.",
+							forkCounter);
+				}
+
+				// confirm put
 				Data data = new Data();
 				if (configuration.getPutTTLInSeconds() > 0) {
 					data.ttlSeconds(configuration.getPutTTLInSeconds());
 				}
-
-				// confirm put
 				FuturePut futurePutConfirm = peer
 						.put(key.locationKey())
 						.domainKey(key.domainKey())
@@ -112,33 +133,33 @@ public final class PesimisticPutStrategy extends PutStrategy {
 						.versionKey(update.vKey)
 						.putConfirm()
 						.requestP2PConfiguration(
-								new RequestP2PConfiguration(configuration
-										.getReplicationFactor(), 5, 0)).start();
+								new RequestP2PConfiguration(replicationFactor,
+										replicationFactor * 2,
+										replicationFactor * 2)).start();
 				futurePutConfirm.awaitUninterruptibly();
 
-				// store version key
-				if (update.vKey.compareTo(memorizedVersionKey) < 0) {
-					memorizedVersionKey = update.vKey;
-				}
+				// cache put
+				versionTree.put(new Number640(key, update.vKey),
+						new HashSet<Number160>(update.data.basedOnSet()));
+
 				// check for consistency breaks
 				if (!firstTime
 						&& ((HashMap<String, Integer>) update.data.object())
 								.get(id) == 1) {
 					increaseConsistencyBreak();
 				}
-				if (update.isMerge) {
-					firstTime = false;
-				}
-				waitTime = 0;
+
+				// do statistics
 				if (update.isMerge) {
 					increaseMergeCounter();
 				} else {
 					increaseWriteCounter();
+					// set flag
+					firstTime = false;
 				}
 
 				logger.debug("Put confirmed. write counter = '{}'",
 						getWriteCounter());
-
 				break;
 			} else {
 				logger.warn("Version fork after put detected. Rejecting and retrying put.");
@@ -152,39 +173,34 @@ public final class PesimisticPutStrategy extends PutStrategy {
 							.contentKey(key.contentKey())
 							.versionKey(update.vKey)
 							.requestP2PConfiguration(
-									new RequestP2PConfiguration(configuration
-											.getReplicationFactor(), 5,
-											configuration
-													.getReplicationFactor()))
-							.start();
+									new RequestP2PConfiguration(
+											replicationFactor,
+											replicationFactor * 2,
+											replicationFactor * 2)).start();
 					futureRemove.awaitUninterruptibly();
 				} while (futureRemove.isSuccess());
 
+				// do statistics
+				forkCounter++;
 				increaseForkAfterPutCounter();
 
 				// exponential back off waiting
-				while (true) {
-					try {
-						waitTime = waitTime + random.nextInt(1000);
-						Thread.sleep(waitTime);
-						break;
-					} catch (InterruptedException e) {
-						waitTime = 0;
-						logger.error("Got interupted.", e);
-					}
-				}
+				Thread.sleep(forkWaitTime);
+				forkWaitTime = forkWaitTime * 2;
 			}
 		}
 	}
 
 	@SuppressWarnings("unchecked")
 	private Update getAndUpdate(PeerDHT peer) throws IOException,
-			ClassNotFoundException {
+			ClassNotFoundException, InterruptedException {
+		int delayLostCounter = 0;
+		int delayWaitTime = random.nextInt(1000) + 1000;
 		while (true) {
 			// fetch latest versions from the network, request also digest
-			NavigableMap<Number640, Set<Number160>> versionTree;
-			Map<Number640, Data> latestVersions;
+			NavigableMap<Number640, Data> latestVersions;
 			int counter = 0;
+			int getWaitTime = random.nextInt(1000) + 1000;
 			while (true) {
 				FutureGet futureGet = peer
 						.get(key.locationKey())
@@ -193,7 +209,11 @@ public final class PesimisticPutStrategy extends PutStrategy {
 						.getLatest()
 						.withDigest()
 						.requestP2PConfiguration(
-								new RequestP2PConfiguration(3, 0, 3)).start();
+								new RequestP2PConfiguration(
+										replicationFactor / 2 + 1, 0,
+										replicationFactor
+												- (replicationFactor / 2 + 1)))
+						.start();
 				futureGet.awaitUninterruptibly();
 
 				// get raw result from all contacted peers
@@ -203,35 +223,64 @@ public final class PesimisticPutStrategy extends PutStrategy {
 						.rawDigest();
 
 				// build the version tree from raw digest result;
-				versionTree = Utils.buildVersionTree(rawDigest);
+				versionTree.putAll(Utils.buildVersionTree(rawDigest));
+				if (!versionTree.isEmpty()) {
+					// remove all clearly out dated versions
+					while (versionTree.firstKey().versionKey().timestamp()
+							+ configuration.getMaxVersions() <= versionTree
+							.lastKey().versionKey().timestamp()) {
+						versionTree.pollFirstEntry();
+					}
+				}
 
 				// join all versions in one map
 				latestVersions = Utils.getLatestVersions(rawData, id);
+				if (!latestVersions.isEmpty()) {
+					// remove all clearly out dated versions
+					while (latestVersions.firstKey().versionKey().timestamp()
+							+ configuration.getMaxVersions() <= latestVersions
+							.lastKey().versionKey().timestamp()) {
+						latestVersions.pollFirstEntry();
+					}
+				}
 
 				// check if get was successful (first time can fail)
 				if ((futureGet.isFailed() || latestVersions.isEmpty())
 						&& !firstTime) {
-					logger.warn("Couldn't get data. try #{}", counter++);
-					if (counter > 2) {
-						logger.warn("Loading of data failed after {} tries.",
-								counter);
+					logger.warn("Couldn't get data. Try #{}. Retrying.",
+							counter++);
+					if (counter > getFailedLimit) {
+						logger.warn(
+								"Loading of data failed after {} tries. reason = '{}'",
+								counter, futureGet.failedReason());
 						break;
+					} else {
+						Thread.sleep(getWaitTime);
+						getWaitTime = getWaitTime * 2;
 					}
 				} else {
 					break;
 				}
 			}
 
-			if (Utils.hasVersionDelay(latestVersions, versionTree)
-					|| isDelayed(versionTree)) {
-				logger.warn("Detected a version delay. versions = '{}'",
-						Utils.getVersionNumbersFromMap(latestVersions));
+			if (Utils.hasVersionDelay(latestVersions, versionTree)) {
+				logger.warn(
+						"Detected a version delay. versions = '{}' history = '{}'",
+						Utils.getVersionNumbersFromMap(latestVersions),
+						Utils.getVersionNumbersFromMap2(versionTree));
+
 				increaseDelayCounter();
-				Utils.waitAMoment();
+
+				Thread.sleep(delayWaitTime);
+				delayWaitTime = delayWaitTime * 2;
+
 				continue;
-			} else if (Utils.hasVersionForkAfterGet(latestVersions)) {
-				logger.warn("Got a version fork. Merging. versions = '{}'",
-						Utils.getVersionNumbersFromMap(latestVersions));
+			} else if (Utils.hasVersionForkAfterGet(latestVersions,
+					configuration.getMaxVersions())) {
+				logger.warn(
+						"Got a version fork. Merging. versions = '{}' history = '{}'",
+						Utils.getVersionKeysFromMap(latestVersions),
+						Utils.getVersionKeysFromMap2(versionTree));
 				return updateMerge(latestVersions);
 			} else {
 				Map<String, Integer> value;
@@ -243,15 +292,43 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				} else {
 					// retrieve latest entry
 					Entry<Number640, Data> lastEntry = latestVersions
-							.entrySet().iterator().next();
+							.lastEntry();
 					value = ((Map<String, Integer>) lastEntry.getValue()
 							.object());
 					basedOnKey = lastEntry.getKey().versionKey();
 				}
 
+				logger.debug("Got. value = '{}' version = '{}'", value,
+						basedOnKey.timestamp());
+
 				// update data
 				if (value.containsKey(id)) {
-					value.put(id, value.get(id) + 1);
+					if (value.get(id) < getWriteCounter()) {
+						if (delayLostCounter < delayLostLimit) {
+							logger.warn(
+									"Detected a version delay. Value '{}' is '{}' but should be at least '{}'.",
+									id, value.get(id), getWriteCounter());
+
+							delayLostCounter++;
+							increaseDelayCounter();
+
+							Thread.sleep(delayWaitTime);
+							delayWaitTime = delayWaitTime * 2;
+
+							continue;
+						} else {
+							logger.warn(
+									"Waited to long for resolving version delay.",
+									id, value.get(id), getWriteCounter());
+							// value has to be same like write counter
+							value.put(id, getWriteCounter() + 1);
+
+							delayLostCounter = 0;
+							increaseConsistencyBreak();
+						}
+					} else {
+						value.put(id, value.get(id) + 1);
+					}
 				} else {
 					value.put(id, 1);
 				}
@@ -315,31 +392,6 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.getKey().versionKey(), mergedValue.toString());
 
 		return new Update(data, versionKey, true);
-	}
-
-	/**
-	 * Checks if the latest version of the given digest is older than the cached
-	 * version.
-	 * 
-	 * @param versionTree
-	 *            digest containing all known versions
-	 * @return <code>true</code> if cached version is newer, <code>false</code>
-	 *         if not
-	 */
-	private boolean isDelayed(
-			NavigableMap<Number640, Set<Number160>> versionTree) {
-		// get latest version, and store it if newer
-		if (!versionTree.isEmpty()) {
-			Number160 latestVersion = versionTree.lastKey().versionKey();
-			if (latestVersion.compareTo(memorizedVersionKey) < 0) {
-				logger.warn(
-						"Detected a later version. memorizedVersion = '{}' latestVersion='{}'",
-						memorizedVersionKey, latestVersion);
-				memorizedVersionKey = latestVersion;
-				return true;
-			}
-		}
-		return false;
 	}
 
 	private class Update {
