@@ -3,11 +3,14 @@ package net.tomp2p.vdht;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 import net.tomp2p.connection.ChannelClientConfiguration;
+import net.tomp2p.connection.PeerException;
+import net.tomp2p.connection.PeerException.AbortCause;
 import net.tomp2p.dht.FutureGet;
 import net.tomp2p.dht.FutureRemove;
 import net.tomp2p.dht.FutureSend;
@@ -16,7 +19,6 @@ import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.dht.StorageMemory;
 import net.tomp2p.futures.FutureBootstrap;
 import net.tomp2p.futures.FutureDiscover;
-import net.tomp2p.p2p.MaintenanceTask;
 import net.tomp2p.p2p.PeerBuilder;
 import net.tomp2p.p2p.RequestP2PConfiguration;
 import net.tomp2p.peers.DefaultMaintenance;
@@ -47,7 +49,8 @@ public class LocalNetworkSimulator {
 			.getLogger(LocalNetworkSimulator.class);
 
 	private PeerDHT masterPeer;
-	private final List<PeerDHT> peers = new ArrayList<PeerDHT>();
+	private final List<PeerDHT> peers = Collections
+			.synchronizedList(new ArrayList<PeerDHT>());
 
 	private ChurnExecutor churnExecutor;
 	private PutCoordinator putCoordinator;
@@ -168,7 +171,7 @@ public class LocalNetworkSimulator {
 				.ports(configuration.getPort()).peerMap(peerMap)
 				.masterPeer(isMaster ? null : masterPeer.peer())
 				.channelClientConfiguration(channelConfig)
-				.maintenanceTask(new MaintenanceTask().intervalMillis(100))
+				//.maintenanceTask(new MaintenanceTask().intervalMillis(100))
 				.start()).storage(
 				new StorageMemory(configuration
 						.getTTLCheckIntervalInMilliseconds(), configuration
@@ -180,37 +183,59 @@ public class LocalNetworkSimulator {
 				@Override
 				public Object reply(PeerAddress sender, Object request)
 						throws Exception {
-					String command = (String) request;
-					if (command.equals("shutdown")) {
-						//logger.debug("I {} have to shutdown.", peer.peerID());
-						new Thread(new Runnable() {
-							@Override
-							public void run() {
-								Thread.currentThread().setName(
-										"vDHT - Shutdown Peer");
-								KeyLock<Number160>.RefCounterLock lock = null;
-								while (lock == null) {
-									lock = keyLock.tryLock(peer.peerID());
+					if (!peer.peer().isShutdown()) {
+						String command = (String) request;
+						if (command.equals("shutdown")) {
+							logger.debug("I {} have to shutdown myself.",
+									peer.peerID());
+							new Thread(new Runnable() {
+								@Override
+								public void run() {
+									Thread.currentThread().setName(
+											"vDHT - Shutdown Peer");
+									KeyLock<Number160>.RefCounterLock lock = null;
+									while (lock == null) {
+										lock = keyLock.tryLock(peer.peerID());
+									}
+									peers.remove(peer);
+									// receiving peer has to shutdown
+									peer.shutdown().awaitUninterruptibly();
+									keyLock.unlock(lock);
+
+									synchronized (peers) {
+										// notify all other peers manually
+										for (PeerDHT p : peers) {
+											p.peer()
+													.peerBean()
+													.peerMap()
+													.peerFailed(
+															peer.peerAddress(),
+															new PeerException(
+																	AbortCause.SHUTDOWN,
+																	"shutdown"));
+										}
+									}
 								}
-								// receiving peer has to shutdown
-								peers.remove(peer);
-								peer.shutdown().awaitUninterruptibly();
-								keyLock.unlock(lock);
-							}
-						}).start();
-					} else if (command.equals("create")) {
-						//logger.debug("I {} have to create.", peer.peerID());
-						new Thread(new Runnable() {
-							@Override
-							public void run() {
-								Thread.currentThread().setName(
-										"vDHT - Create Peer");
-								// create one peer
-								addPeersToTheNetwork(1);
-							}
-						}).start();
+							}).start();
+						} else if (command.equals("create")) {
+							logger.debug("I {} have to create a peer.",
+									peer.peerID());
+							new Thread(new Runnable() {
+								@Override
+								public void run() {
+									Thread.currentThread().setName(
+											"vDHT - Create Peer");
+									// create one peer
+									addPeersToTheNetwork(1);
+								}
+							}).start();
+						} else {
+							logger.error("Received an unknown message '{}'.",
+									request);
+						}
 					} else {
-						logger.error("Received an unknown message '{}'.",
+						logger.debug(
+								"Ignoring '{}' request because of shutdown.",
 								request);
 					}
 					return null;
@@ -355,7 +380,18 @@ public class LocalNetworkSimulator {
 						.peerAddress(masterPeer.peerAddress()).start();
 				futureBootstrap.awaitUninterruptibly();
 
-				peers.add(newPeer);
+				// notify all other peers manually
+				synchronized (peers) {
+					for (PeerDHT p : peers) {
+						p.peer()
+								.peerBean()
+								.peerMap()
+								.peerFound(
+										newPeer.peerAddress(),
+										null, null);
+					}
+					peers.add(newPeer);
+				}
 			} catch (IOException e) {
 				logger.error("Couldn't create a new peer.", e);
 			}
@@ -364,8 +400,7 @@ public class LocalNetworkSimulator {
 
 	public void removePeersFromNetwork(int numberOfLeavingPeers) {
 		// logger.debug("Leaving {} peers. # peers = '{}'",
-		// numberOfLeavingPeers,
-		// peers.size() + 1);
+		// numberOfLeavingPeers, peers.size() + 1);
 		for (int i = 0; i < numberOfLeavingPeers; i++) {
 			KeyLock<Number160>.RefCounterLock lock = null;
 			PeerDHT peer = null;
@@ -418,7 +453,8 @@ public class LocalNetworkSimulator {
 	}
 
 	public void sendShutdownMessages(Number160 key, int numPeers) {
-		//logger.debug("Shutdowning {} nodes. nodes = '{}'", numPeers, peers.size());
+		// logger.debug("Shutdowning {} nodes. nodes = '{}'", numPeers,
+		// peers.size());
 		KeyLock<Number160>.RefCounterLock lock = null;
 		PeerDHT peer = null;
 		while (lock == null) {
@@ -436,7 +472,8 @@ public class LocalNetworkSimulator {
 	}
 
 	public void sendCreateMessages(Number160 key, int numPeers) {
-		//logger.debug("Creating {} nodes. nodes = '{}'", numPeers, peers.size());
+		// logger.debug("Creating {} nodes. nodes = '{}'", numPeers,
+		// peers.size());
 		KeyLock<Number160>.RefCounterLock lock = null;
 		PeerDHT peer = null;
 		while (lock == null) {
@@ -451,6 +488,10 @@ public class LocalNetworkSimulator {
 						new RequestP2PConfiguration(numPeers, 0, 0)).start();
 		futureSend.awaitUninterruptibly();
 		keyLock.unlock(lock);
+	}
+
+	public PeerDHT getMasterPeer() {
+		return masterPeer;
 	}
 
 }
