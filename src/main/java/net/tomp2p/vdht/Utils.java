@@ -1,7 +1,6 @@
 package net.tomp2p.vdht;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -95,22 +94,82 @@ public class Utils {
 	 * @throws IllegalStateException
 	 */
 	public static boolean hasVersionForkAfterGet(
-			Map<Number640, Data> latestVersions, int versionLimit)
-			throws IllegalStateException {
-		NavigableMap<Number640, Data> map = new TreeMap<Number640, Data>(
-				latestVersions);
-		if (!map.isEmpty()) {
-			// remove all clearly out dated versions
-			while (map.firstKey().versionKey().timestamp() + versionLimit <= map
-					.lastKey().versionKey().timestamp()) {
-				latestVersions.remove(map.firstKey());
-				map.pollFirstEntry();
-			}
-		}
-		if (map.size() > 1) {
+			NavigableMap<Number640, Set<Number160>> versions) {
+		NavigableMap<Number640, Set<Number160>> latest = getLatest2(versions);
+		if (latest.size() > 1) {
 			return true;
 		} else {
 			return false;
+		}
+	}
+
+	public static NavigableMap<Number640, Set<Number160>> getLatest2(
+			NavigableMap<Number640, Set<Number160>> versions) {
+		// delete all predecessors
+		NavigableMap<Number640, Set<Number160>> tmp = new TreeMap<Number640, Set<Number160>>(
+				versions);
+		NavigableMap<Number640, Set<Number160>> result = new TreeMap<Number640, Set<Number160>>();
+		while (!tmp.isEmpty()) {
+			// first entry is a latest version
+			Entry<Number640, Set<Number160>> latest = tmp.lastEntry();
+			// store in results list
+			result.put(latest.getKey(), latest.getValue());
+			// delete all predecessors of latest entry
+			deletePredecessors2(latest.getKey(), tmp);
+		}
+		return result;
+	}
+
+	private static void deletePredecessors2(Number640 key,
+			NavigableMap<Number640, Set<Number160>> sortedMap) {
+		Set<Number160> basedOnSet = sortedMap.remove(key);
+		// check if set has been already deleted
+		if (basedOnSet == null) {
+			return;
+		}
+		// check if version is initial version
+		if (basedOnSet.isEmpty()) {
+			return;
+		}
+		// remove all predecessor versions recursively
+		for (Number160 basedOnKey : basedOnSet) {
+			deletePredecessors2(new Number640(key.locationDomainAndContentKey(),
+					basedOnKey), sortedMap);
+		}
+	}
+
+	public static NavigableMap<Number640, Data> getLatest(
+			NavigableMap<Number640, Data> versions) {
+		// delete all predecessors
+		NavigableMap<Number640, Data> tmp = new TreeMap<Number640, Data>(
+				versions);
+		NavigableMap<Number640, Data> result = new TreeMap<Number640, Data>();
+		while (!tmp.isEmpty()) {
+			// first entry is a latest version
+			Entry<Number640, Data> latest = tmp.lastEntry();
+			// store in results list
+			result.put(latest.getKey(), latest.getValue());
+			// delete all predecessors of latest entry
+			deletePredecessors(latest.getKey(), tmp);
+		}
+		return result;
+	}
+
+	private static void deletePredecessors(Number640 key,
+			NavigableMap<Number640, Data> sortedMap) {
+		Data version = sortedMap.remove(key);
+		// check if set has been already deleted
+		if (version == null) {
+			return;
+		}
+		// check if version is initial version
+		if (version.basedOnSet().isEmpty()) {
+			return;
+		}
+		// remove all predecessor versions recursively
+		for (Number160 basedOnKey : version.basedOnSet()) {
+			deletePredecessors(new Number640(key.locationDomainAndContentKey(),
+					basedOnKey), sortedMap);
 		}
 	}
 
@@ -174,11 +233,10 @@ public class Utils {
 	 * 
 	 * @param peerDataMap
 	 *            get result from all contacted peers
-	 * @param id
 	 * @return map containing all latest versions
 	 */
-	public static NavigableMap<Number640, Data> getLatestVersions(
-			Map<PeerAddress, Map<Number640, Data>> peerDataMap, String id) {
+	public static NavigableMap<Number640, Data> buildVersions(
+			Map<PeerAddress, Map<Number640, Data>> peerDataMap) {
 		NavigableMap<Number640, Data> latestVersions = new TreeMap<Number640, Data>();
 		if (peerDataMap != null) {
 			for (PeerAddress peerAddress : peerDataMap.keySet()) {
@@ -284,6 +342,16 @@ public class Utils {
 			tmp += "], ";
 		}
 		return tmp;
+	}
+
+	public static void removeOutdatedVersions(NavigableMap<Number640, ?> versions, int limit) {
+		if (!versions.isEmpty()) {
+			while (versions.firstKey().versionKey().timestamp()
+					+ limit <= versions.lastKey()
+					.versionKey().timestamp()) {
+				versions.pollFirstEntry();
+			}
+		}
 	}
 
 }

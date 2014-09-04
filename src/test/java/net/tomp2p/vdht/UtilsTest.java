@@ -93,18 +93,4 @@ public class UtilsTest {
 		Assert.assertTrue(Utils.hasVersionDelay(latestVersions, versionTree));
 	}
 
-	@Test
-	public void testHasVersionForkAfterGet() {
-		Map<Number640, Data> latestVersions = new HashMap<Number640, Data>();
-		Number480 key = new Number480(new Random());
-		latestVersions.put(new Number640(key, new Number160(12, Number160
-				.createHash("test").number96())), new Data());
-		Assert.assertFalse(Utils.hasVersionForkAfterGet(latestVersions, 10));
-		latestVersions.put(new Number640(key, new Number160(22, Number160
-				.createHash("test").number96())), new Data());
-		Assert.assertFalse(Utils.hasVersionForkAfterGet(latestVersions, 10));
-		latestVersions.put(new Number640(key, new Number160(21, Number160
-				.createHash("test").number96())), new Data());
-		Assert.assertTrue(Utils.hasVersionForkAfterGet(latestVersions, 10));
-	}
 }
