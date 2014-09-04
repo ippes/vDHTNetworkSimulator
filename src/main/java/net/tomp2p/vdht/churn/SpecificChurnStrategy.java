@@ -1,5 +1,7 @@
 package net.tomp2p.vdht.churn;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import net.tomp2p.peers.Number480;
@@ -20,16 +22,25 @@ public class SpecificChurnStrategy implements ChurnStrategy {
 		this.configuration = simulator.getConfiguration();
 	}
 
+	private int nonLinearRandom(int bound) {
+		List<Integer> list = new ArrayList<Integer>();
+		for (int i = 0; i < bound; i++) {
+			for (int j = 0; j < bound - i; j++) {
+				list.add(i);
+			}
+		}
+		return list.get(random.nextInt(list.size()));
+	}
+
 	private int getNumJoiningPeers() {
 		int currentNumberOfPeers = simulator.getPeerSize();
 		if (currentNumberOfPeers + 1 + configuration.getChurnRateJoin() <= configuration
 				.getNumPeersMax()) {
-			return configuration.getChurnRateJoin() > 0 ? random
-					.nextInt(configuration.getChurnRateJoin() + 1) : 0;
+			return configuration.getChurnRateJoin() > 0 ? nonLinearRandom(configuration.getChurnRateJoin() + 1) : 0;
 		} else {
 			int restDelta = configuration.getNumPeersMax()
 					- (currentNumberOfPeers + 1);
-			return restDelta > 0 ? random.nextInt(restDelta + 1) : 0;
+			return restDelta > 0 ? nonLinearRandom(restDelta + 1) : 0;
 		}
 	}
 
@@ -37,12 +48,11 @@ public class SpecificChurnStrategy implements ChurnStrategy {
 		int currentNumberOfPeers = simulator.getPeerSize();
 		if (currentNumberOfPeers + 1 - configuration.getChurnRateLeave() >= configuration
 				.getNumPeersMin()) {
-			return configuration.getChurnRateLeave() > 0 ? random
-					.nextInt(configuration.getChurnRateLeave() + 1) : 0;
+			return configuration.getChurnRateLeave() > 0 ? nonLinearRandom(configuration.getChurnRateLeave() + 1) : 0;
 		} else {
 			int restDelta = currentNumberOfPeers + 1
 					- configuration.getNumPeersMin();
-			return restDelta > 0 ? random.nextInt(restDelta + 1) : 0;
+			return restDelta > 0 ? nonLinearRandom(restDelta + 1) : 0;
 		}
 	}
 
