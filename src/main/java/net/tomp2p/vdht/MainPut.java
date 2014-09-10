@@ -3,6 +3,8 @@ package net.tomp2p.vdht;
 import java.io.File;
 import java.io.IOException;
 
+import net.tomp2p.vdht.simulator.PutSimulator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,14 +36,14 @@ public class MainPut {
 				logger.error("Couldn't read given config file = '{}'",
 						configFile.getName());
 			}
-			LocalNetworkSimulator network = new LocalNetworkSimulator(
+			PutSimulator simulator = new PutSimulator(
 					configuration);
 
 			logger.info("Setting up the network simulator.");
-			network.createNetwork();
+			simulator.createNetwork();
 
 			logger.info("Start simulating churn.");
-			network.startChurn();
+			simulator.startChurn();
 
 			int runtimeInMilliseconds = configuration
 					.getRuntimeInMilliseconds();
@@ -49,37 +51,34 @@ public class MainPut {
 			// run according given runtime
 			if (runtimeInMilliseconds > 0 && numPuts < 0) {
 				logger.info("Start putting data.");
-				network.startPutting();
+				simulator.startPutting();
 				logger.info("Running simulation for {} milliseconds.",
 						runtimeInMilliseconds);
 				Thread.sleep(runtimeInMilliseconds);
 			} else if (runtimeInMilliseconds < 0 && numPuts > 0) {
 				logger.info("Start putting data.");
-				network.startPutting();
+				simulator.startPutting();
 				// run till simulation stops
-				while (network.isPuttingRunning()) {
+				while (simulator.isPuttingRunning()) {
 					Thread.sleep(500);
 				}
 			}
 
-			network.shutDownChurn();
+			simulator.shutDownChurn();
 			logger.info("Churn stopped.");
 
-			network.shutDownPutCoordinators();
+			simulator.shutDownPutCoordinators();
 			logger.info("Putting stopped.");
 
-			network.loadAndStoreResults();
+			simulator.loadAndStoreResults();
 			logger.info("Results loaded and stored.");
 
-			network.deleteData();
-			logger.info("Data removed.");
-
-			network.shutDownNetwork();
+			simulator.shutDownNetwork();
 			logger.info("Network is down.");
 
 			if (numPuts > 0 || runtimeInMilliseconds > 0) {
 				logger.debug("Printing results.");
-				network.printResults();
+				simulator.printResults();
 			}
 
 			logger.info("========================================================");

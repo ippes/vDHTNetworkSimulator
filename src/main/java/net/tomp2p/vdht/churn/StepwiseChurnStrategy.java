@@ -3,7 +3,7 @@ package net.tomp2p.vdht.churn;
 import java.util.Random;
 
 import net.tomp2p.vdht.Configuration;
-import net.tomp2p.vdht.LocalNetworkSimulator;
+import net.tomp2p.vdht.simulator.NetworkSimulator;
 
 /**
  * A churn strategy where the amount of joining and leaving peers is constant
@@ -17,10 +17,10 @@ public final class StepwiseChurnStrategy implements ChurnStrategy {
 
 	private final Random random = new Random();
 
-	private final LocalNetworkSimulator simulator;
+	private final NetworkSimulator simulator;
 	private final Configuration configuration;
 
-	public StepwiseChurnStrategy(LocalNetworkSimulator simulator) {
+	public StepwiseChurnStrategy(NetworkSimulator simulator) {
 		this.simulator = simulator;
 		this.configuration = simulator.getConfiguration();
 	}

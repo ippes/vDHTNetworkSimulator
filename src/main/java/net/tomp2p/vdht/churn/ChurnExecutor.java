@@ -6,7 +6,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import net.tomp2p.vdht.Configuration;
-import net.tomp2p.vdht.LocalNetworkSimulator;
+import net.tomp2p.vdht.simulator.NetworkSimulator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +31,7 @@ public final class ChurnExecutor implements Runnable {
 	private boolean shutdown = false;
 	private boolean stopped = false;
 
-	public ChurnExecutor(LocalNetworkSimulator simulator) {
+	public ChurnExecutor(NetworkSimulator simulator) {
 		this.configuration = simulator.getConfiguration();
 		String churnStrategyName = configuration.getChurnStrategyName();
 		switch (churnStrategyName) {

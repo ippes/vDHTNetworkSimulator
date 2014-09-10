@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.Configuration;
-import net.tomp2p.vdht.LocalNetworkSimulator;
+import net.tomp2p.vdht.simulator.PutSimulator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +27,10 @@ public final class PutExecutor implements Runnable {
 	private final Configuration configuration;
 	private final ScheduledExecutorService scheduler;
 	private final PutStrategy putStrategy;
-	private final LocalNetworkSimulator simulator;
+	private final PutSimulator simulator;
 
 	public PutExecutor(String id, Number480 key, Result result,
-			ScheduledExecutorService scheduler, LocalNetworkSimulator simulator) {
+			ScheduledExecutorService scheduler, PutSimulator simulator) {
 		this.id = id;
 		this.result = result;
 		this.configuration = simulator.getConfiguration();

@@ -3,6 +3,8 @@ package net.tomp2p.vdht;
 import java.io.File;
 import java.io.IOException;
 
+import net.tomp2p.vdht.simulator.NetworkSimulator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +36,7 @@ public class MainNetwork {
 				logger.error("Couldn't read given config file = '{}'",
 						configFile.getName());
 			}
-			LocalNetworkSimulator network = new LocalNetworkSimulator(
+			NetworkSimulator network = new NetworkSimulator(
 					configuration);
 
 			logger.info("Setting up the network simulator.");
