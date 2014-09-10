@@ -1,12 +1,11 @@
 package net.tomp2p.vdht.churn;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.Configuration;
-import net.tomp2p.vdht.LocalNetworkSimulator;
+import net.tomp2p.vdht.simulator.NetworkSimulator;
+import net.tomp2p.vdht.simulator.PutSimulator;
 
 public class SpecificChurnStrategy implements ChurnStrategy {
 
@@ -14,65 +13,60 @@ public class SpecificChurnStrategy implements ChurnStrategy {
 
 	private final Random random = new Random();
 
-	private final LocalNetworkSimulator simulator;
+	private final NetworkSimulator simulator;
 	private final Configuration configuration;
 
-	public SpecificChurnStrategy(LocalNetworkSimulator simulator) {
+	public SpecificChurnStrategy(NetworkSimulator simulator) {
 		this.simulator = simulator;
 		this.configuration = simulator.getConfiguration();
 	}
 
-	private int nonLinearRandom(int bound) {
-		List<Integer> list = new ArrayList<Integer>();
-		for (int i = 0; i < bound; i++) {
-			for (int j = 0; j < bound - i; j++) {
-				list.add(i);
-			}
-		}
-		return list.get(random.nextInt(list.size()));
-	}
+	// private int nonLinearRandom(int bound) {
+	// List<Integer> list = new ArrayList<Integer>();
+	// for (int i = 0; i < bound; i++) {
+	// for (int j = 0; j < bound - i; j++) {
+	// list.add(i);
+	// }
+	// }
+	// return list.get(random.nextInt(list.size()));
+	// }
 
 	private int getNumJoiningPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
-		if (currentNumberOfPeers + 1 + configuration.getChurnRateJoin() <= configuration
+		int currentNumberOfPeers = simulator.getPeerSize() + 1;
+		int joiningPeers = configuration.getChurnRateJoin();
+		if (currentNumberOfPeers + joiningPeers <= configuration
 				.getNumPeersMax()) {
-			return configuration.getChurnRateJoin() > 0 ? nonLinearRandom(configuration.getChurnRateJoin() + 1) : 0;
+			return joiningPeers;
 		} else {
-			int restDelta = configuration.getNumPeersMax()
-					- (currentNumberOfPeers + 1);
-			return restDelta > 0 ? nonLinearRandom(restDelta + 1) : 0;
+			return configuration.getNumPeersMax() - (currentNumberOfPeers + 1);
 		}
 	}
 
 	private int getNumLeavingPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
-		if (currentNumberOfPeers + 1 - configuration.getChurnRateLeave() >= configuration
+		int currentNumberOfPeers = simulator.getPeerSize() + 1;
+		int leavingPeers = configuration.getChurnRateLeave();
+		if (currentNumberOfPeers - leavingPeers >= configuration
 				.getNumPeersMin()) {
-			return configuration.getChurnRateLeave() > 0 ? nonLinearRandom(configuration.getChurnRateLeave() + 1) : 0;
+			return leavingPeers;
 		} else {
-			int restDelta = currentNumberOfPeers + 1
-					- configuration.getNumPeersMin();
-			return restDelta > 0 ? nonLinearRandom(restDelta + 1) : 0;
+			return currentNumberOfPeers + 1 - configuration.getNumPeersMin();
 		}
 	}
 
 	@Override
 	public void doChurn() {
-		if (simulator.getPutCoordinator() != null) {
-			Number480 key = simulator.getPutCoordinator().getKey();
-			// toggle join/leaves
-			double churnRate = random.nextDouble();
-			if (configuration.getChurnJoinLeaveRate() < churnRate) {
-				// target the replica nodes of given key to create a new peer
-				// the idea is to target the same LocalNetworkSimulator instance
-				// to avoid an erasion of peers in the peer list
-				simulator.sendCreateMessages(key.locationKey(),
-						getNumJoiningPeers());
-			} else {
-				// target the replica nodes of given key to shutdown
-				simulator.sendShutdownMessages(key.locationKey(),
-						getNumLeavingPeers());
-			}
+		Number480 key = ((PutSimulator) simulator).getKey();
+
+		if (key == null)
+			return;
+
+		// toggle join/leaves
+		double churnRate = random.nextDouble();
+		if (configuration.getChurnJoinLeaveRate() < churnRate) {
+			simulator.addPeersToTheNetwork(getNumJoiningPeers());
+		} else {
+			simulator.removeClosePeersFromNetwork(key.locationKey(),
+					getNumLeavingPeers());
 		}
 	}
 }
