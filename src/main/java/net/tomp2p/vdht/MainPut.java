@@ -40,7 +40,11 @@ public class MainPut {
 					configuration);
 
 			logger.info("Setting up the network simulator.");
-			simulator.createNetwork();
+			if (args.length == 3) {
+				simulator.createNetwork(args[1], Integer.parseInt(args[2]));
+			} else {
+				simulator.createNetwork();
+			}
 
 			logger.info("Start simulating churn.");
 			simulator.startChurn();
