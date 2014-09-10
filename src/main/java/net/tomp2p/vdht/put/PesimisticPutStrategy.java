@@ -94,7 +94,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				// analyze put
 				if (futurePut.isFailed()) {
-					logger.warn("Put failed. Try #{}. Retrying.", putCounter++);
+					logger.warn("Put failed. Try #{}. Retrying. reason = '{}'",
+							putCounter++, futurePut.failedReason());
 					if (putCounter > putFailedLimit) {
 						logger.warn("Put failed after {} tries. reason = '{}'",
 								putCounter, futurePut.failedReason());
@@ -375,8 +376,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.getLatest()
 				.withDigest()
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor - 1, 0, 1))
-				.start();
+						new RequestP2PConfiguration(replicationFactor - 1, 50,
+								1)).start();
 		futureGet.awaitUninterruptibly();
 		return futureGet;
 	}
@@ -389,7 +390,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.versionKey(vKey)
 				.requestP2PConfiguration(
 						new RequestP2PConfiguration(replicationFactor / 2 + 1,
-								0, replicationFactor * 2
+								50, replicationFactor * 2
 										- (replicationFactor / 2 + 1))).start();
 		futurePut.awaitUninterruptibly();
 		return futurePut;
@@ -403,8 +404,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.versionKey(vKey)
 				.putConfirm()
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor,
-								replicationFactor * 2,
+						new RequestP2PConfiguration(replicationFactor, 50,
 								replicationFactor * 2 - 2)).start();
 		futurePutConfirm.awaitUninterruptibly();
 		return futurePutConfirm;
@@ -417,8 +417,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.contentKey(key.contentKey())
 				.versionKey(vKey)
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor,
-								replicationFactor * 2,
+						new RequestP2PConfiguration(replicationFactor, 50,
 								replicationFactor * 2 - 2)).start();
 		futureRemove.awaitUninterruptibly();
 		return futureRemove;
