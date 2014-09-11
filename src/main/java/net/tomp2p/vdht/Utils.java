@@ -59,7 +59,9 @@ public class Utils {
 			} else {
 				Entry<Number640, Byte> result = new TreeMap<Number640, Byte>(
 						putResult).firstEntry();
-				if (result.getValue().intValue() == PutStatus.OK.ordinal()) {
+				if (result.getValue().intValue() == PutStatus.OK.ordinal()
+						|| result.getValue().intValue() == PutStatus.NOT_FOUND
+								.ordinal()) {
 					continue;
 				} else if (result.getValue().intValue() == PutStatus.VERSION_FORK
 						.ordinal()) {
@@ -133,8 +135,8 @@ public class Utils {
 		}
 		// remove all predecessor versions recursively
 		for (Number160 basedOnKey : basedOnSet) {
-			deletePredecessors2(new Number640(key.locationDomainAndContentKey(),
-					basedOnKey), sortedMap);
+			deletePredecessors2(new Number640(
+					key.locationDomainAndContentKey(), basedOnKey), sortedMap);
 		}
 	}
 
@@ -344,11 +346,11 @@ public class Utils {
 		return tmp;
 	}
 
-	public static void removeOutdatedVersions(NavigableMap<Number640, ?> versions, int limit) {
+	public static void removeOutdatedVersions(
+			NavigableMap<Number640, ?> versions, int limit) {
 		if (!versions.isEmpty()) {
-			while (versions.firstKey().versionKey().timestamp()
-					+ limit <= versions.lastKey()
-					.versionKey().timestamp()) {
+			while (versions.firstKey().versionKey().timestamp() + limit <= versions
+					.lastKey().versionKey().timestamp()) {
 				versions.pollFirstEntry();
 			}
 		}

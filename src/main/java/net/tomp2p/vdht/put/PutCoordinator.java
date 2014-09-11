@@ -1,22 +1,15 @@
 package net.tomp2p.vdht.put;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import net.tomp2p.dht.FutureGet;
-import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.simulator.PutSimulator;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public final class PutCoordinator {
-
-	private static Logger logger = LoggerFactory
-			.getLogger(PutCoordinator.class);
 
 	private final Number480 key = new Number480(new Random());
 
@@ -63,23 +56,22 @@ public final class PutCoordinator {
 		return shutdown;
 	}
 
-	@SuppressWarnings("unchecked")
 	public void loadResults() {
-		// load latest version
-		PeerDHT peer = simulator.requestPeer();
-		try {
-			// load latest string
-			FutureGet futureGet = peer.get(key.locationKey())
-					.contentKey(key.contentKey()).domainKey(key.domainKey())
-					.getLatest().start();
-			futureGet.awaitUninterruptibly();
-			result.setLatestVersion((Map<String, Integer>) futureGet.data()
-					.object());
-		} catch (Exception e) {
-			logger.error("Couldn't get result.", e);
-		} finally {
-			simulator.releasePeer(peer);
+		Map<String, Integer> tmp = new HashMap<String, Integer>();
+		for (PutExecutor putExecutor : putExecutors) {
+			Map<String, Integer> latest = putExecutor.getPutStrategy()
+					.getLatest();
+			for (String id : latest.keySet()) {
+				if (tmp.containsKey(id)) {
+					if (tmp.get(id) < latest.get(id)) {
+						tmp.put(id, latest.get(id));
+					}
+				} else {
+					tmp.put(id, latest.get(id));
+				}
+			}
 		}
+		result.setLatestVersion(tmp);
 	}
 
 	public Result getResult() {

@@ -45,6 +45,8 @@ public class NetworkSimulator implements ISimulator {
 	private PeerDHT masterPeer;
 	private final List<PeerDHT> peers = Collections
 			.synchronizedList(new ArrayList<PeerDHT>());
+	private final List<PeerDHT> lockedPeers = Collections
+			.synchronizedList(new ArrayList<PeerDHT>());
 
 	private ChurnExecutor churnExecutor;
 
@@ -64,12 +66,12 @@ public class NetworkSimulator implements ISimulator {
 	}
 
 	@Override
-	public int getPeerSize() {
-		if (peers != null) {
-			return peers.size();
-		} else {
-			return 0;
+	public int getNetworkSize() {
+		int tmp = peers.size() + lockedPeers.size();
+		if (masterPeer != null) {
+			tmp += 1;
 		}
+		return tmp;
 	}
 
 	@Override
@@ -159,7 +161,7 @@ public class NetworkSimulator implements ISimulator {
 		// reduce TCP number of short-lived TCP connections to avoid timeouts
 		ChannelClientConfiguration channelConfig = PeerBuilder
 				.createDefaultChannelClientConfiguration();
-		channelConfig.maxPermitsTCP(configuration.getReplicationFactor() * 3);
+		channelConfig.maxPermitsTCP(20);
 
 		final PeerDHT peer = new PeerBuilderDHT(new PeerBuilder(peerId)
 				.ports(configuration.getPort()).peerMap(peerMap)
@@ -233,6 +235,10 @@ public class NetworkSimulator implements ISimulator {
 			peer.shutdown().awaitUninterruptibly();
 		}
 		peers.clear();
+		for (PeerDHT peer: lockedPeers) {
+			peer.shutdown().awaitUninterruptibly();
+		}
+		lockedPeers.clear();
 		if (masterPeer != null) {
 			masterPeer.shutdown().awaitUninterruptibly();
 		}
@@ -240,7 +246,7 @@ public class NetworkSimulator implements ISimulator {
 	}
 
 	@Override
-	public PeerDHT requestPeer() {
+	public PeerDHT requestPeer(boolean permanent) {
 		KeyLock<Number160>.RefCounterLock lock = null;
 		PeerDHT peer = null;
 		while (lock == null) {
@@ -248,12 +254,17 @@ public class NetworkSimulator implements ISimulator {
 			lock = keyLock.tryLock(peer.peerID());
 		}
 		locks.put(peer, lock);
+		peers.remove(peer);
+		lockedPeers.add(peer);
 		return peer;
 	}
 
 	@Override
-	public void releasePeer(PeerDHT peer) {
-		keyLock.unlock(locks.get(peer));
+	public void releasePeer(PeerDHT peer) throws IllegalMonitorStateException {
+		keyLock.unlock(locks.remove(peer));
+		if (lockedPeers.remove(peer)) {
+			peers.add(peer);
+		}
 	}
 
 	@Override
@@ -271,29 +282,26 @@ public class NetworkSimulator implements ISimulator {
 						.peerAddress(masterPeer.peerAddress()).start();
 				futureBootstrap.awaitUninterruptibly();
 
-//				// notify all other peers manually
-//				synchronized (peers) {
-//					for (PeerDHT p : peers) {
-//						p.peer().peerBean().peerMap()
-//								.peerFound(newPeer.peerAddress(), null, null);
-//					}
-//					peers.add(newPeer);
-//				}
+				peers.add(newPeer);
+				logger.debug("Peer '{}' joined the network.", newPeer.peerID());
 			} catch (IOException e) {
 				logger.error("Couldn't create a new peer.", e);
 			}
 		}
+		logger.debug("{} peers online.", getNetworkSize());
 	}
 
 	@Override
 	public void removePeersFromNetwork(int numberOfLeavingPeers) {
 		for (int i = 0; i < numberOfLeavingPeers; i++) {
-			PeerDHT peer = requestPeer();
+			PeerDHT peer = requestPeer(false);
 			peers.remove(peer);
 			peer.peer().announceShutdown().start().awaitUninterruptibly();
 			peer.shutdown().awaitUninterruptibly();
 			releasePeer(peer);
+			logger.debug("Peer '{}' leaved the network.", peer.peerID());
 		}
+		logger.debug("{} peers online.", getNetworkSize());
 	}
 
 	@Override
@@ -301,27 +309,28 @@ public class NetworkSimulator implements ISimulator {
 			int numLeavingPeers) {
 		NavigableMap<Number160, PeerDHT> map = new TreeMap<Number160, PeerDHT>(
 				PeerMap.createComparator2(locationKey));
-		synchronized (peers) {
-			for (PeerDHT peer : peers) {
-				map.put(peer.peerID(), peer);
-			}
-			int i = 0;
-			for (Iterator<Number160> iterator = map.keySet().iterator(); iterator
-					.hasNext() && numLeavingPeers > i; i++) {
-				Number160 toRemoveKey = iterator.next();
-				PeerDHT toRemovePeer = map.get(toRemoveKey);
-
-				KeyLock<Number160>.RefCounterLock lock = null;
-				while (lock == null) {
-					lock = keyLock.tryLock(toRemoveKey);
-				}
-				peers.remove(toRemovePeer);
-				toRemovePeer.peer().announceShutdown().start()
-						.awaitUninterruptibly();
-				toRemovePeer.shutdown().awaitUninterruptibly();
-				keyLock.unlock(lock);
-			}
+		for (PeerDHT peer : peers) {
+			map.put(peer.peerID(), peer);
 		}
+		int i = 0;
+		for (Iterator<Number160> iterator = map.keySet().iterator(); iterator
+				.hasNext() && numLeavingPeers > i; i++) {
+			Number160 toRemoveKey = iterator.next();
+			PeerDHT toRemovePeer = map.get(toRemoveKey);
+
+			KeyLock<Number160>.RefCounterLock lock = null;
+			while (lock == null) {
+				lock = keyLock.tryLock(toRemoveKey);
+			}
+			peers.remove(toRemovePeer);
+			toRemovePeer.peer().announceShutdown().start()
+					.awaitUninterruptibly();
+			toRemovePeer.shutdown().awaitUninterruptibly();
+			keyLock.unlock(lock);
+			logger.debug("Peer '{}' close to '{}' leaved the network.",
+					toRemovePeer.peerID(), locationKey);
+		}
+		logger.debug("{} peers online.", getNetworkSize());
 	}
 
 	@Override

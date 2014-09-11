@@ -48,7 +48,7 @@ public class KeyLock<K> {
 		}
 	}
 
-	public void unlock(final RefCounterLock lock) {
+	public void unlock(final RefCounterLock lock) throws IllegalMonitorStateException {
 		RefCounterLock cachedLock = null;
 		lockInternal.lock();
 		try {
@@ -58,6 +58,7 @@ public class KeyLock<K> {
 					throw new IllegalArgumentException("Lock does not matches the stored lock.");
 				}
 				cachedLock.counter--;
+				
 				cachedLock.lock.unlock();
 				// check if last reference
 				if (cachedLock.counter == 0) {

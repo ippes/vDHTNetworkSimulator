@@ -35,6 +35,8 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 
 	private final Configuration configuration;
 
+	private Map<String, Integer> value;
+
 	private Number160 basedOnKey = Number160.ZERO;
 
 	public TraditionalVersionPutStrategy(String id, Number480 key,
@@ -57,7 +59,6 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 				futureGet.dataMap());
 
 		// update value (append task's id)
-		Map<String, Integer> value;
 		if (map.isEmpty()) {
 			// reset value
 			value = new HashMap<String, Integer>();
@@ -102,6 +103,11 @@ public final class TraditionalVersionPutStrategy extends PutStrategy {
 
 		logger.debug("Put. value = '{}' write counter = '{}' version = '{}'",
 				value, getWriteCounter(), versionKey.timestamp());
+	}
+
+	@Override
+	public Map<String, Integer> getLatest() {
+		return value;
 	}
 
 }

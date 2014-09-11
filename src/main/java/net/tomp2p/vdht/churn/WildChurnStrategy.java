@@ -26,14 +26,14 @@ public final class WildChurnStrategy implements ChurnStrategy {
 	}
 
 	private int getNumJoiningPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
+		int currentNumberOfPeers = simulator.getNetworkSize();
 		int maxJoiningPeers = configuration.getNumPeersMax()
-				- (currentNumberOfPeers + 1);
+				- currentNumberOfPeers;
 		return maxJoiningPeers > 0 ? random.nextInt(maxJoiningPeers + 1) : 0;
 	}
 
 	private int getNumLeavingPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
+		int currentNumberOfPeers = simulator.getNetworkSize();
 		int maxLeavingPeers = currentNumberOfPeers
 				- configuration.getNumPeersMin();
 		return maxLeavingPeers > 0 ? random.nextInt(maxLeavingPeers + 1) + 1

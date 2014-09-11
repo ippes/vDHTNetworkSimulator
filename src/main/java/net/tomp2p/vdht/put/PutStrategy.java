@@ -1,5 +1,7 @@
 package net.tomp2p.vdht.put;
 
+import java.util.Map;
+
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number480;
 
@@ -22,6 +24,8 @@ public abstract class PutStrategy {
 	}
 
 	public abstract void getUpdateAndPut(PeerDHT peer) throws Exception;
+
+	public abstract Map<String, Integer> getLatest();
 
 	public void increaseWriteCounter() {
 		result.increaseWriteCounter(id);

@@ -361,8 +361,8 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				.getLatest()
 				.withDigest()
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor - 1, 50, 1))
-				.start();
+						new RequestP2PConfiguration(replicationFactor - 1, 50,
+								1)).start();
 		futureGet.awaitUninterruptibly();
 		return futureGet;
 	}
@@ -388,8 +388,7 @@ public final class OptimisticPutStrategy extends PutStrategy {
 				.contentKey(key.contentKey())
 				.versionKey(vKey)
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor,
-								50,
+						new RequestP2PConfiguration(replicationFactor, 50,
 								replicationFactor * 2 - 2)).start();
 		futureRemove.awaitUninterruptibly();
 		return futureRemove;
@@ -407,6 +406,18 @@ public final class OptimisticPutStrategy extends PutStrategy {
 			this.isMerge = isMerge;
 		}
 
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public Map<String, Integer> getLatest() {
+		try {
+			return (Map<String, Integer>) cachedVersions.lastEntry().getValue()
+					.object();
+		} catch (Exception e) {
+			logger.warn("Couldn't return latest version.");
+			return null;
+		}
 	}
 
 }

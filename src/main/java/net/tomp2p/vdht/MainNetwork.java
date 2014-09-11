@@ -35,6 +35,7 @@ public class MainNetwork {
 			} catch (IOException e) {
 				logger.error("Couldn't read given config file = '{}'",
 						configFile.getName());
+				return;
 			}
 			NetworkSimulator network = new NetworkSimulator(
 					configuration);

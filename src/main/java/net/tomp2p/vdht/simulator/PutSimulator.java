@@ -1,11 +1,9 @@
 package net.tomp2p.vdht.simulator;
 
-import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.Configuration;
 import net.tomp2p.vdht.Outcome;
 import net.tomp2p.vdht.put.PutCoordinator;
-import net.tomp2p.vdht.put.PutStrategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,15 +56,6 @@ public class PutSimulator extends NetworkSimulator {
 	public void printResults() {
 		if (putCoordinator != null) {
 			putCoordinator.getResult().printResults();
-		}
-	}
-
-	public void put(PutStrategy putStrategy) throws Exception {
-		PeerDHT peer = requestPeer();
-		try {
-			putStrategy.getUpdateAndPut(peer);
-		} finally {
-			releasePeer(peer);
 		}
 	}
 

@@ -183,12 +183,13 @@ public final class PesimisticPutStrategy extends PutStrategy {
 		int delayWaitTime = random.nextInt(1000) + 1000;
 		while (true) {
 			// fetch latest versions from the network, request also digest
+			FutureGet futureGet;
 			NavigableMap<Number640, Data> fetchedVersions;
 			int getCounter = 0;
 			int getWaitTime = random.nextInt(1000) + 1000;
 			while (true) {
 				// load latest data
-				FutureGet futureGet = get(peer);
+				futureGet = get(peer);
 
 				// get raw result from all contacted peers
 				Map<PeerAddress, Map<Number640, Data>> rawData = futureGet
@@ -202,7 +203,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				// join all freshly loaded versions in one map
 				fetchedVersions = Utils.buildVersions(rawData);
-				Utils.removeOutdatedVersions(fetchedVersions, maxVersions);
+				//Utils.removeOutdatedVersions(fetchedVersions, maxVersions);
 
 				// merge freshly loaded versions with cache
 				cachedVersions.putAll(fetchedVersions);
@@ -211,14 +212,20 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				// check if get was successful (first time can fail)
 				if ((futureGet.isFailed() || fetchedVersions.isEmpty())
 						&& !firstTime) {
-					logger.warn("Couldn't get data. Try #{}. Retrying.",
-							getCounter++);
 					if (getCounter > getFailedLimit) {
 						logger.warn(
-								"Loading of data failed after {} tries. reason = '{}'",
-								getCounter, futureGet.failedReason());
+								"Loading of data failed after {} tries. reason = '{}' direct hits = '{}' potential hits = '{}'",
+								getCounter, futureGet.failedReason(), futureGet
+										.futureRouting().directHits(),
+								futureGet.futureRouting().potentialHits());
 						break;
 					} else {
+						logger.warn(
+								"Couldn't get data. Try #{}. Retrying. reason = '{}' direct hits = '{}' potential hits = '{}' fetched versions = '{}'",
+								getCounter++, futureGet.failedReason(),
+								futureGet.futureRouting().directHits(),
+								futureGet.futureRouting().potentialHits(),
+								fetchedVersions);
 						// maintenance: reput latest versions
 						for (Number640 version : cachedVersions.keySet()) {
 							put(peer,
@@ -274,8 +281,11 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			if (latestVersionKeys.size() > 1 && delayCounter < delayLimit) {
 				NavigableMap<Number640, Data> latestVersions = Utils
 						.getLatest(cachedVersions);
-				logger.warn("Got a version fork. Merging. versions = '{}'",
-						Utils.getVersionNumbersFromMap(latestVersions));
+				logger.warn(
+						"Got a version fork. Merging. versions = '{}' direct hits = '{}' potential hits = '{}'",
+						Utils.getVersionNumbersFromMap(latestVersions),
+						futureGet.futureRouting().directHits(), futureGet
+								.futureRouting().potentialHits());
 				return updateMerge(latestVersions);
 			} else {
 				if (delayCounter >= delayLimit) {
@@ -376,8 +386,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.getLatest()
 				.withDigest()
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor - 1, 50,
-								1)).start();
+						new RequestP2PConfiguration(replicationFactor-1, 50, 1))
+				.start();
 		futureGet.awaitUninterruptibly();
 		return futureGet;
 	}
@@ -389,9 +399,8 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.domainKey(key.domainKey())
 				.versionKey(vKey)
 				.requestP2PConfiguration(
-						new RequestP2PConfiguration(replicationFactor / 2 + 1,
-								50, replicationFactor * 2
-										- (replicationFactor / 2 + 1))).start();
+						new RequestP2PConfiguration(replicationFactor, 50, 0))
+				.start();
 		futurePut.awaitUninterruptibly();
 		return futurePut;
 	}
@@ -405,7 +414,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.putConfirm()
 				.requestP2PConfiguration(
 						new RequestP2PConfiguration(replicationFactor, 50,
-								replicationFactor * 2 - 2)).start();
+								replicationFactor)).start();
 		futurePutConfirm.awaitUninterruptibly();
 		return futurePutConfirm;
 	}
@@ -418,7 +427,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.versionKey(vKey)
 				.requestP2PConfiguration(
 						new RequestP2PConfiguration(replicationFactor, 50,
-								replicationFactor * 2 - 2)).start();
+								replicationFactor)).start();
 		futureRemove.awaitUninterruptibly();
 		return futureRemove;
 	}
@@ -435,6 +444,18 @@ public final class PesimisticPutStrategy extends PutStrategy {
 			this.isMerge = isMerge;
 		}
 
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public Map<String, Integer> getLatest() {
+		try {
+			return (Map<String, Integer>) cachedVersions.lastEntry().getValue()
+					.object();
+		} catch (Exception e) {
+			logger.warn("Couldn't return latest version.");
+			return null;
+		}
 	}
 
 }

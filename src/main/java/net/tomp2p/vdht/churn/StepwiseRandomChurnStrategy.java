@@ -27,20 +27,20 @@ public final class StepwiseRandomChurnStrategy implements ChurnStrategy {
 	}
 
 	private int getNumJoiningPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
-		if (currentNumberOfPeers + 1 + configuration.getChurnRateJoin() <= configuration
+		int currentNumberOfPeers = simulator.getNetworkSize();
+		if (currentNumberOfPeers + configuration.getChurnRateJoin() <= configuration
 				.getNumPeersMax()) {
 			return configuration.getChurnRateJoin() > 0 ? random
 					.nextInt(configuration.getChurnRateJoin() + 1) : 0;
 		} else {
 			int restDelta = configuration.getNumPeersMax()
-					- (currentNumberOfPeers + 1);
+					- currentNumberOfPeers;
 			return restDelta > 0 ? random.nextInt(restDelta + 1) : 0;
 		}
 	}
 
 	private int getNumLeavingPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
+		int currentNumberOfPeers = simulator.getNetworkSize();
 		if (currentNumberOfPeers + 1 - configuration.getChurnRateLeave() >= configuration
 				.getNumPeersMin()) {
 			return configuration.getChurnRateLeave() > 0 ? random

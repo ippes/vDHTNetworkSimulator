@@ -28,6 +28,8 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 	private final Configuration configuration;
 
+	private Map<String, Integer> value;
+
 	public TraditionalPutStrategy(String id, Number480 key, Result result,
 			Configuration configuration) {
 		super(id, key, result);
@@ -44,7 +46,6 @@ public final class TraditionalPutStrategy extends PutStrategy {
 		futureGet.awaitUninterruptibly();
 
 		// get result and update it (append id)
-		Map<String, Integer> value;
 		Data result = futureGet.data();
 		if (result == null) {
 			// reset value
@@ -79,6 +80,11 @@ public final class TraditionalPutStrategy extends PutStrategy {
 
 		logger.debug("Executed put. value = '{}' write counter = '{}'", value,
 				getWriteCounter());
+	}
+
+	@Override
+	public Map<String, Integer> getLatest() {
+		return value;
 	}
 
 }

@@ -7,7 +7,13 @@ import net.tomp2p.peers.Number160;
 
 public interface ISimulator {
 
-	public int getPeerSize();
+	/**
+	 * Returns the number of peers currently online in the network. Master peer
+	 * is excluded.
+	 * 
+	 * @return network size
+	 */
+	public int getNetworkSize();
 
 	public void createNetwork() throws IOException;
 
@@ -22,7 +28,7 @@ public interface ISimulator {
 
 	public void shutDownNetwork();
 
-	public PeerDHT requestPeer();
+	public PeerDHT requestPeer(boolean permanent);
 
 	public void releasePeer(PeerDHT peer);
 

@@ -26,22 +26,22 @@ public final class StepwiseChurnStrategy implements ChurnStrategy {
 	}
 
 	private int getNumJoiningPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
-		if (currentNumberOfPeers + 1 + configuration.getChurnRateJoin() <= configuration
+		int currentNumberOfPeers = simulator.getNetworkSize();
+		if (currentNumberOfPeers + configuration.getChurnRateJoin() <= configuration
 				.getNumPeersMax()) {
 			return configuration.getChurnRateJoin();
 		} else {
-			return configuration.getNumPeersMax() - (currentNumberOfPeers + 1);
+			return configuration.getNumPeersMax() - currentNumberOfPeers;
 		}
 	}
 
 	private int getNumLeavingPeers() {
-		int currentNumberOfPeers = simulator.getPeerSize();
-		if (currentNumberOfPeers + 1 - configuration.getChurnRateLeave() >= configuration
+		int currentNumberOfPeers = simulator.getNetworkSize();
+		if (currentNumberOfPeers - configuration.getChurnRateLeave() >= configuration
 				.getNumPeersMin()) {
 			return configuration.getChurnRateLeave();
 		} else {
-			return currentNumberOfPeers + 1 - configuration.getNumPeersMin();
+			return currentNumberOfPeers - configuration.getNumPeersMin();
 		}
 	}
 

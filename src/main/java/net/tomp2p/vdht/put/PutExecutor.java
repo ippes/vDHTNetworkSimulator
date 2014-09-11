@@ -4,6 +4,7 @@ import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.Configuration;
 import net.tomp2p.vdht.simulator.PutSimulator;
@@ -21,6 +22,7 @@ public final class PutExecutor implements Runnable {
 	private boolean stopped = false;
 
 	private long startTime;
+	private PeerDHT peer;
 
 	private final String id;
 	private final Result result;
@@ -62,6 +64,7 @@ public final class PutExecutor implements Runnable {
 	}
 
 	public void start() {
+		peer = simulator.requestPeer(true);
 		startTime = System.currentTimeMillis();
 		scheduler.schedule(this, delay(), TimeUnit.MILLISECONDS);
 	}
@@ -74,7 +77,7 @@ public final class PutExecutor implements Runnable {
 	public void run() {
 		Thread.currentThread().setName("vDHT - Put " + id);
 		try {
-			simulator.put(putStrategy);
+			putStrategy.getUpdateAndPut(peer);
 		} catch (Exception e) {
 			if (!shutdown) {
 				logger.error("Caught an unexpected exception.", e);
@@ -88,7 +91,15 @@ public final class PutExecutor implements Runnable {
 				long runtime = System.currentTimeMillis() - startTime;
 				result.storeRuntime(id, runtime);
 
-				shutdown = true;
+				if (peer != null) {
+					// TODO release peer from starter thread to avoid
+					// IllegalMonitorStateException
+					try {
+						simulator.releasePeer(peer);
+					} catch (IllegalMonitorStateException e) {
+					}
+					peer = null;
+				}
 				stopped = true;
 				return;
 			}

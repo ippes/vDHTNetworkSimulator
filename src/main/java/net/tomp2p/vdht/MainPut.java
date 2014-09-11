@@ -35,6 +35,7 @@ public class MainPut {
 			} catch (IOException e) {
 				logger.error("Couldn't read given config file = '{}'",
 						configFile.getName());
+				return;
 			}
 			PutSimulator simulator = new PutSimulator(
 					configuration);
