@@ -385,6 +385,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.contentKey(key.contentKey())
 				.getLatest()
 				.withDigest()
+				.fastGet(false)
 				.requestP2PConfiguration(
 						new RequestP2PConfiguration(replicationFactor-1, 50, 1))
 				.start();
@@ -425,6 +426,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 				.domainKey(key.domainKey())
 				.contentKey(key.contentKey())
 				.versionKey(vKey)
+				.fastGet(false)
 				.requestP2PConfiguration(
 						new RequestP2PConfiguration(replicationFactor, 50,
 								replicationFactor)).start();
