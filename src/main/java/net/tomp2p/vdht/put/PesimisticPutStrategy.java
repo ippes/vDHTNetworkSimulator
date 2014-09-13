@@ -95,14 +95,14 @@ public final class PesimisticPutStrategy extends PutStrategy {
 
 				// analyze put
 				if (futurePut.isFailed()) {
-					logger.warn("Put failed. Try #{}. Retrying. reason = '{}'",
-							putCounter++, futurePut.failedReason());
 					if (putCounter > putFailedLimit) {
 						logger.warn("Put failed after {} tries. reason = '{}'",
 								putCounter, futurePut.failedReason());
 						// peer is broken return with no action
 						return;
 					} else {
+						logger.warn("Put failed. Try #{}. Retrying. reason = '{}'",
+								putCounter++, futurePut.failedReason());
 						// exponential back off waiting
 						Thread.sleep(putWaitTime);
 						putWaitTime = putWaitTime * 2;
