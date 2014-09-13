@@ -61,6 +61,8 @@ public class Utils {
 						putResult).firstEntry();
 				if (result.getValue().intValue() == PutStatus.OK.ordinal()
 						|| result.getValue().intValue() == PutStatus.NOT_FOUND
+								.ordinal()
+						|| result.getValue().intValue() == PutStatus.DELETED
 								.ordinal()) {
 					continue;
 				} else if (result.getValue().intValue() == PutStatus.VERSION_FORK
@@ -255,6 +257,11 @@ public class Utils {
 					NavigableMap<Number640, Data> sortedDataMap = new TreeMap<Number640, Data>(
 							dataMap);
 					for (Number640 key : sortedDataMap.keySet()) {
+						if(latestVersions.containsKey(key)) {
+							if (latestVersions.get(key).isDeleted()) {
+								continue;
+							}
+						}
 						latestVersions.put(key, sortedDataMap.get(key));
 					}
 				}
