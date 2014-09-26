@@ -9,6 +9,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import net.tomp2p.peers.Number480;
 import net.tomp2p.vdht.simulator.PutSimulator;
 
+/**
+ * Maintains a given amount of put executors.
+ * 
+ * @author Seppi
+ */
 public final class PutCoordinator {
 
 	private final Number480 key = new Number480(new Random());

@@ -7,8 +7,7 @@ import net.tomp2p.vdht.simulator.NetworkSimulator;
 
 /**
  * A churn strategy where the amount of joining and leaving peers varies in a
- * certain range. (stepwise). Strategy never trespass or undercuts given
- * boundaries.
+ * certain range. Strategy never trespass or undercuts given boundaries.
  * 
  * @author Seppi
  */

@@ -287,6 +287,7 @@ public final class PesimisticPutStrategy extends PutStrategy {
 							Utils.getVersionNumbersFromMap2(latestVersionKeys),
 							futureGet.futureRouting().potentialHits(),
 							Utils.getVersionNumbersFromMap2(versionTree));
+					increaseForkAfterGetCounter();
 					forkAfterGetCounter++;
 					// exponential back off waiting
 					Thread.sleep(forkAfterGetWaitTime);

@@ -7,6 +7,13 @@ import net.tomp2p.vdht.Configuration;
 import net.tomp2p.vdht.simulator.NetworkSimulator;
 import net.tomp2p.vdht.simulator.PutSimulator;
 
+/**
+ * A churn strategy where the amount of joining and leaving peers is constant
+ * (stepwise). Strategy never trespass or undercuts given boundaries. The
+ * selected leaving nodes are closest to the key used for putting simulation.
+ * 
+ * @author Seppi
+ */
 public class SpecificChurnStrategy implements ChurnStrategy {
 
 	public static final String CHURN_STRATEGY_NAME = "specific";
@@ -20,16 +27,6 @@ public class SpecificChurnStrategy implements ChurnStrategy {
 		this.simulator = simulator;
 		this.configuration = simulator.getConfiguration();
 	}
-
-	// private int nonLinearRandom(int bound) {
-	// List<Integer> list = new ArrayList<Integer>();
-	// for (int i = 0; i < bound; i++) {
-	// for (int j = 0; j < bound - i; j++) {
-	// list.add(i);
-	// }
-	// }
-	// return list.get(random.nextInt(list.size()));
-	// }
 
 	private int getNumJoiningPeers() {
 		int currentNumberOfPeers = simulator.getNetworkSize();

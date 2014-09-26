@@ -5,6 +5,11 @@ import java.io.IOException;
 import net.tomp2p.dht.PeerDHT;
 import net.tomp2p.peers.Number160;
 
+/**
+ * Interface for a network simulator, which executes churn.
+ * 
+ * @author Seppi
+ */
 public interface ISimulator {
 
 	/**

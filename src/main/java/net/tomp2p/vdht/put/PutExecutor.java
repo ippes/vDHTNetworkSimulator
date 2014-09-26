@@ -12,6 +12,11 @@ import net.tomp2p.vdht.simulator.PutSimulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Repeatedly executes it-self. Triggers the given put strategy.
+ * 
+ * @author Seppi
+ */
 public final class PutExecutor implements Runnable {
 
 	private final Logger logger = LoggerFactory.getLogger(PutExecutor.class);

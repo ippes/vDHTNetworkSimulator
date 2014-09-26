@@ -8,6 +8,12 @@ import net.tomp2p.vdht.put.PutCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A put simulator extending the network simulator. Starts and stops a putting
+ * coordinator.
+ * 
+ * @author Seppi
+ */
 public class PutSimulator extends NetworkSimulator {
 
 	private static Logger logger = LoggerFactory.getLogger(PutSimulator.class);

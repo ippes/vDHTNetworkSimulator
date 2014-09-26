@@ -12,8 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Repeatedly executes it-self. Adds and removes peers according given churn
- * strategy and join/leave ratio.
+ * Repeatedly executes it-self. Triggers the given churn strategy.
  * 
  * @author Seppi
  */

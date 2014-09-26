@@ -10,8 +10,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Initializes and runs network simulations according given configuration files.
- * Starts churn. Starts putting procedure. Waits a certain amount so that
- * simulation can run. Stops simulation and shutdowns network.
+ * Starts churn. Starts putting procedure. Waits a certain amount and stops
+ * afterwards the simulation or waits till simulation finishes. Shutdowns churn.
+ * Stores results. Shutdowns network.
  * 
  * @author Seppi
  */
@@ -20,8 +21,14 @@ public class MainPut {
 	private static Logger logger = LoggerFactory.getLogger(MainPut.class);
 
 	public static void main(String[] args) {
+		if (args.length != 1 && args.length != 3) {
+			logger.info("Config file is missing.");
+			return;
+		}
+
 		Thread.currentThread().setName("vDHT - Main Put");
 
+		// load config file
 		File configFile = new File(args[0]);
 		try {
 			logger.info("========================================================");
@@ -35,13 +42,14 @@ public class MainPut {
 			} catch (IOException e) {
 				logger.error("Couldn't read given config file = '{}'",
 						configFile.getName());
+				logger.info("========================================================");
 				return;
 			}
-			PutSimulator simulator = new PutSimulator(
-					configuration);
+			PutSimulator simulator = new PutSimulator(configuration);
 
 			logger.info("Setting up the network simulator.");
 			if (args.length == 3) {
+				// create network and bootstrap to given node
 				simulator.createNetwork(args[1], Integer.parseInt(args[2]));
 			} else {
 				simulator.createNetwork();
